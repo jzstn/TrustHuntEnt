@@ -1,0 +1,12 @@
+/// <reference types="vite/client" />
+# Salesforce OAuth Configuration
+VITE_SALESFORCE_CLIENT_ID= 3MVG9XgkMlifdwVA7CRDZ2XNySSIwsonO9VRkpho20hfgjhErOKSW4lgx5h8mGr2RIWELLghlNj1Gpw1aJt6N
+VITE_SALESFORCE_CLIENT_SECRET=76F27760F48746EB62A0EFBBBBBDA1A3286237ECF7FFD88F8181B382865C55EA
+VITE_SALESFORCE_REDIRECT_URI=http://localhost:5173/auth/callback
+
+# Environment Configuration
+VITE_ENVIRONMENT=development
+VITE_API_BASE_URL=http://localhost:3000/api
+
+# Security Configuration
+VITE_ENCRYPTION_KEY=your_encryption_key_for_token_storage
