@@ -1,0 +1,312 @@
+/* TrustHunt Enterprise Content Script Styles */
+
+#trusthunt-security-overlay {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 999999;
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(37, 99, 235, 0.3);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: all 0.3s ease;
+  opacity: 0.9;
+}
+
+#trusthunt-security-overlay:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(37, 99, 235, 0.4);
+}
+
+.trusthunt-overlay-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: white;
+}
+
+.trusthunt-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.trusthunt-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 80px;
+}
+
+.trusthunt-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10b981;
+  animation: pulse 2s infinite;
+}
+
+.trusthunt-status-dot.warning {
+  background: #f59e0b;
+}
+
+.trusthunt-status-dot.critical {
+  background: #ef4444;
+}
+
+.trusthunt-status-dot.secure {
+  background: #10b981;
+}
+
+.trusthunt-status-text {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.trusthunt-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.trusthunt-scan-btn,
+.trusthunt-report-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.trusthunt-scan-btn:hover,
+.trusthunt-report-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+/* Security Alert Styles */
+.trusthunt-security-alert {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  z-index: 999998;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e5e7eb;
+  max-width: 400px;
+  animation: slideInRight 0.3s ease;
+}
+
+.trusthunt-alert-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+}
+
+.trusthunt-alert-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trusthunt-alert-icon.critical {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.trusthunt-alert-icon.warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.trusthunt-alert-icon.info {
+  background: #dbeafe;
+  color: #2563eb;
+}
+
+.trusthunt-alert-text {
+  flex: 1;
+}
+
+.trusthunt-alert-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.trusthunt-alert-message {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.trusthunt-alert-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.trusthunt-alert-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* Vulnerability Highlighting */
+.trusthunt-vulnerability-highlight {
+  position: relative;
+  outline: 2px solid #ef4444 !important;
+  outline-offset: 2px;
+  background: rgba(239, 68, 68, 0.1) !important;
+}
+
+.trusthunt-vulnerability-tooltip {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #1f2937;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  z-index: 999999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.trusthunt-vulnerability-highlight:hover .trusthunt-vulnerability-tooltip {
+  opacity: 1;
+}
+
+/* Notification Styles */
+.trusthunt-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999997;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  max-width: 300px;
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  border-left: 4px solid #2563eb;
+}
+
+.trusthunt-notification.success {
+  border-left-color: #10b981;
+  color: #065f46;
+}
+
+.trusthunt-notification.warning {
+  border-left-color: #f59e0b;
+  color: #92400e;
+}
+
+.trusthunt-notification.error {
+  border-left-color: #ef4444;
+  color: #991b1b;
+}
+
+.trusthunt-notification.show {
+  transform: translateX(0);
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  #trusthunt-security-overlay {
+    top: 10px;
+    right: 10px;
+  }
+  
+  .trusthunt-overlay-content {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  
+  .trusthunt-status-text {
+    font-size: 11px;
+  }
+  
+  .trusthunt-security-alert {
+    top: 60px;
+    right: 10px;
+    max-width: calc(100vw - 20px);
+  }
+  
+  .trusthunt-notification {
+    bottom: 10px;
+    right: 10px;
+    max-width: calc(100vw - 20px);
+  }
+}
+
+/* Ensure overlay doesn't interfere with Salesforce UI */
+.slds-modal,
+.slds-backdrop,
+.oneHeader,
+.forcePageHeader {
+  z-index: 9999 !important;
+}
+
+/* Hide overlay when Salesforce modals are open */
+.slds-modal-backdrop ~ #trusthunt-security-overlay {
+  display: none;
+}

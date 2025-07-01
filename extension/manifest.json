@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "TrustHunt Enterprise - Salesforce Security Scanner",
+  "version": "1.0.0",
+  "description": "Real-time Salesforce security analysis directly in your browser. Automatically detects and scans your Salesforce org for vulnerabilities.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "cookies",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://*.salesforce.com/*",
+    "https://*.force.com/*",
+    "https://*.my.salesforce.com/*",
+    "https://*.lightning.force.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.salesforce.com/*",
+        "https://*.force.com/*",
+        "https://*.my.salesforce.com/*",
+        "https://*.lightning.force.com/*"
+      ],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "TrustHunt Enterprise",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["injected.js"],
+      "matches": [
+        "https://*.salesforce.com/*",
+        "https://*.force.com/*",
+        "https://*.my.salesforce.com/*",
+        "https://*.lightning.force.com/*"
+      ]
+    }
+  ]
+}
