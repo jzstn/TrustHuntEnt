@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TrustHuntDashboard } from './components/Dashboard/TrustHuntDashboard';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { SecurityReportView } from './components/Dashboard/SecurityReportView';

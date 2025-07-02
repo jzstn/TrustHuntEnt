@@ -270,7 +270,7 @@ class TrustHuntContent {
   }
 
   openSecurityReport() {
-    // Open TrustHunt web app
+    // Open TrustHunt web app with report view
     window.open('http://localhost:5173/report', '_blank');
   }
 
