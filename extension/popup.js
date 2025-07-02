@@ -3,23 +3,130 @@ class TrustHuntPopup {
     this.currentTab = null;
     this.orgData = null;
     this.scanInProgress = false;
+    this.errorMessages = [];
     this.init();
   }
 
   async init() {
-    await this.getCurrentTab();
-    await this.detectSalesforceOrg();
-    this.setupEventListeners();
-    this.startPeriodicUpdates();
+    try {
+      await this.getCurrentTab();
+      await this.detectSalesforceOrg();
+      this.setupEventListeners();
+      this.startPeriodicUpdates();
+    } catch (error) {
+      this.logError('Initialization error', error);
+      this.showErrorState(error.message);
+    }
+  }
+
+  logError(context, error) {
+    console.error(`[TrustHunt Error] ${context}:`, error);
+    this.errorMessages.push({
+      context,
+      message: error.message || String(error),
+      timestamp: new Date()
+    });
+    this.updateErrorDisplay();
+  }
+
+  updateErrorDisplay() {
+    const errorContainer = document.getElementById('errorContainer');
+    if (!errorContainer) {
+      // Create error container if it doesn't exist
+      const container = document.createElement('div');
+      container.id = 'errorContainer';
+      container.className = 'bg-red-50 border border-red-200 rounded-lg p-4 mt-4 hidden';
+      container.innerHTML = `
+        <h4 class="text-sm font-medium text-red-800 mb-2">Diagnostic Information</h4>
+        <div id="errorList" class="text-xs text-red-700 max-h-32 overflow-y-auto"></div>
+        <button id="clearErrors" class="text-xs text-red-600 mt-2 hover:text-red-800">Clear Errors</button>
+      `;
+      
+      // Add to main content
+      const mainContent = document.getElementById('mainContent');
+      if (mainContent) {
+        mainContent.appendChild(container);
+        
+        // Add event listener for clear button
+        document.getElementById('clearErrors').addEventListener('click', () => {
+          this.errorMessages = [];
+          this.updateErrorDisplay();
+        });
+      }
+    }
+    
+    // Update error list
+    const errorList = document.getElementById('errorList');
+    if (errorList && this.errorMessages.length > 0) {
+      errorContainer.classList.remove('hidden');
+      errorList.innerHTML = this.errorMessages.map(err => 
+        `<div class="mb-1 pb-1 border-b border-red-100">
+          <span class="font-medium">${err.context}:</span> ${err.message}
+          <div class="text-red-500 text-xs">${err.timestamp.toLocaleTimeString()}</div>
+        </div>`
+      ).join('');
+    } else if (errorContainer) {
+      errorContainer.classList.add('hidden');
+    }
+  }
+
+  showErrorState(message) {
+    this.hideAllStates();
+    
+    // Check if error state container exists, if not create it
+    let errorState = document.getElementById('errorState');
+    if (!errorState) {
+      errorState = document.createElement('div');
+      errorState.id = 'errorState';
+      errorState.className = 'error-state';
+      errorState.innerHTML = `
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Error Occurred</h3>
+        <p id="errorMessage" class="text-gray-600 mb-4"></p>
+        <button id="retryButton" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          Retry
+        </button>
+      `;
+      
+      document.getElementById('mainContent').appendChild(errorState);
+      
+      // Add event listener for retry button
+      document.getElementById('retryButton').addEventListener('click', () => {
+        this.init();
+      });
+    }
+    
+    // Update error message
+    document.getElementById('errorMessage').textContent = message || 'An unexpected error occurred. Please try again.';
+    
+    // Show error state
+    errorState.classList.remove('hidden');
+    
+    // Update connection status
+    this.updateConnectionStatus('error', 'Error');
   }
 
   async getCurrentTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    this.currentTab = tab;
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      this.currentTab = tab;
+    } catch (error) {
+      this.logError('Failed to get current tab', error);
+      throw error;
+    }
   }
 
   async detectSalesforceOrg() {
-    if (!this.currentTab) return;
+    if (!this.currentTab) {
+      this.logError('No current tab available', new Error('Tab information not available'));
+      return;
+    }
 
     const url = this.currentTab.url;
     const isSalesforce = this.isSalesforceUrl(url);
@@ -43,8 +150,8 @@ class TrustHuntPopup {
         this.showNotSalesforceState();
       }
     } catch (error) {
-      console.error('Error detecting org:', error);
-      this.showNotSalesforceState();
+      this.logError('Error detecting org', error);
+      this.showErrorState(`Failed to detect Salesforce org: ${error.message}`);
     }
   }
 
@@ -79,7 +186,7 @@ class TrustHuntPopup {
         return orgInfo;
       }
     } catch (error) {
-      console.error('Error extracting org info:', error);
+      this.logError('Error extracting org info', error);
     }
     
     return null;
@@ -169,7 +276,7 @@ class TrustHuntPopup {
         this.orgData.vulnerabilityCount = 0;
       }
     } catch (error) {
-      console.error('Error loading security data:', error);
+      this.logError('Error loading security data', error);
     }
   }
 
@@ -199,16 +306,29 @@ class TrustHuntPopup {
   }
 
   hideAllStates() {
-    const states = ['loadingState', 'notSalesforceState', 'orgDetectedState', 'scanningState'];
+    const states = ['loadingState', 'notSalesforceState', 'orgDetectedState', 'scanningState', 'errorState'];
     states.forEach(state => {
-      document.getElementById(state).classList.add('hidden');
+      const element = document.getElementById(state);
+      if (element) {
+        element.classList.add('hidden');
+      }
     });
   }
 
   updateConnectionStatus(status, text) {
     const statusElement = document.getElementById('connectionStatus');
+    if (!statusElement) {
+      console.error('Connection status element not found');
+      return;
+    }
+    
     const dot = statusElement.querySelector('.status-dot');
     const span = statusElement.querySelector('span');
+    
+    if (!dot || !span) {
+      console.error('Status dot or span not found');
+      return;
+    }
     
     // Remove existing classes
     dot.classList.remove('warning', 'error');
@@ -230,126 +350,180 @@ class TrustHuntPopup {
   }
 
   populateOrgInfo() {
-    if (!this.orgData) return;
-
-    // Update org details
-    document.getElementById('orgName').textContent = this.orgData.orgName;
-    document.getElementById('orgUrl').textContent = this.orgData.instanceUrl;
-    
-    const orgTypeElement = document.getElementById('orgType');
-    orgTypeElement.textContent = this.orgData.orgType;
-    orgTypeElement.className = `org-type ${this.orgData.orgType}`;
-
-    // Update security status
-    document.getElementById('riskScore').textContent = this.orgData.riskScore || '--';
-    document.getElementById('vulnerabilityCount').textContent = this.orgData.vulnerabilityCount || '--';
-    
-    const lastScanElement = document.getElementById('lastScan');
-    if (this.orgData.lastScan) {
-      const timeDiff = Date.now() - this.orgData.lastScan.getTime();
-      const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      
-      if (days > 0) {
-        lastScanElement.textContent = `${days}d ago`;
-      } else if (hours > 0) {
-        lastScanElement.textContent = `${hours}h ago`;
-      } else {
-        lastScanElement.textContent = 'Recent';
-      }
-    } else {
-      lastScanElement.textContent = 'Never';
+    if (!this.orgData) {
+      this.logError('No org data available', new Error('Org data is null or undefined'));
+      return;
     }
 
-    // Update insights
-    this.updateInsights();
+    try {
+      // Update org details
+      const orgNameElement = document.getElementById('orgName');
+      const orgUrlElement = document.getElementById('orgUrl');
+      const orgTypeElement = document.getElementById('orgType');
+      
+      if (!orgNameElement || !orgUrlElement || !orgTypeElement) {
+        this.logError('Org info elements not found', new Error('Required DOM elements missing'));
+        return;
+      }
+      
+      orgNameElement.textContent = this.orgData.orgName;
+      orgUrlElement.textContent = this.orgData.instanceUrl;
+      
+      orgTypeElement.textContent = this.orgData.orgType;
+      orgTypeElement.className = `org-type ${this.orgData.orgType}`;
+
+      // Update security status
+      const riskScoreElement = document.getElementById('riskScore');
+      const vulnerabilityCountElement = document.getElementById('vulnerabilityCount');
+      const lastScanElement = document.getElementById('lastScan');
+      
+      if (!riskScoreElement || !vulnerabilityCountElement || !lastScanElement) {
+        this.logError('Security status elements not found', new Error('Required DOM elements missing'));
+        return;
+      }
+      
+      riskScoreElement.textContent = this.orgData.riskScore || '--';
+      vulnerabilityCountElement.textContent = this.orgData.vulnerabilityCount || '--';
+      
+      if (this.orgData.lastScan) {
+        const timeDiff = Date.now() - this.orgData.lastScan.getTime();
+        const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        
+        if (days > 0) {
+          lastScanElement.textContent = `${days}d ago`;
+        } else if (hours > 0) {
+          lastScanElement.textContent = `${hours}h ago`;
+        } else {
+          lastScanElement.textContent = 'Recent';
+        }
+      } else {
+        lastScanElement.textContent = 'Never';
+      }
+
+      // Update insights
+      this.updateInsights();
+    } catch (error) {
+      this.logError('Error populating org info', error);
+    }
   }
 
   updateInsights() {
-    const insightsList = document.getElementById('insightsList');
-    const insights = [];
+    try {
+      const insightsList = document.getElementById('insightsList');
+      if (!insightsList) {
+        this.logError('Insights list element not found', new Error('Required DOM element missing'));
+        return;
+      }
+      
+      const insights = [];
 
-    if (this.orgData.securityData) {
-      if (this.orgData.riskScore > 80) {
-        insights.push({
-          icon: '✅',
-          text: 'Security posture is good'
-        });
-      } else if (this.orgData.riskScore > 60) {
-        insights.push({
-          icon: '⚠️',
-          text: 'Some security issues detected'
-        });
+      if (this.orgData.securityData) {
+        if (this.orgData.riskScore > 80) {
+          insights.push({
+            icon: '✅',
+            text: 'Security posture is good'
+          });
+        } else if (this.orgData.riskScore > 60) {
+          insights.push({
+            icon: '⚠️',
+            text: 'Some security issues detected'
+          });
+        } else {
+          insights.push({
+            icon: '🚨',
+            text: 'Critical security issues found'
+          });
+        }
+
+        if (this.orgData.vulnerabilityCount === 0) {
+          insights.push({
+            icon: '🛡️',
+            text: 'No vulnerabilities detected'
+          });
+        }
       } else {
         insights.push({
-          icon: '🚨',
-          text: 'Critical security issues found'
+          icon: '🔍',
+          text: 'Ready for security scan'
         });
       }
 
-      if (this.orgData.vulnerabilityCount === 0) {
-        insights.push({
-          icon: '🛡️',
-          text: 'No vulnerabilities detected'
-        });
-      }
-    } else {
+      // Always show real-time monitoring
       insights.push({
-        icon: '🔍',
-        text: 'Ready for security scan'
+        icon: '📡',
+        text: 'Real-time monitoring active'
       });
-    }
 
-    // Always show real-time monitoring
-    insights.push({
-      icon: '📡',
-      text: 'Real-time monitoring active'
-    });
-
-    // Update the insights list
-    insightsList.innerHTML = insights.map(insight => `
-      <div class="insight-item">
-        <div class="insight-icon">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
+      // Update the insights list
+      insightsList.innerHTML = insights.map(insight => `
+        <div class="insight-item">
+          <div class="insight-icon">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </div>
+          <span>${insight.text}</span>
         </div>
-        <span>${insight.text}</span>
-      </div>
-    `).join('');
+      `).join('');
+    } catch (error) {
+      this.logError('Error updating insights', error);
+    }
   }
 
   setupEventListeners() {
-    // Open web app button
-    document.getElementById('openWebApp').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'http://localhost:5173' });
-    });
+    try {
+      // Open web app button
+      const openWebAppButton = document.getElementById('openWebApp');
+      if (openWebAppButton) {
+        openWebAppButton.addEventListener('click', () => {
+          chrome.tabs.create({ url: 'http://localhost:5173' });
+        });
+      }
 
-    // Start scan button
-    document.getElementById('startScanButton').addEventListener('click', () => {
-      this.startSecurityScan();
-    });
+      // Start scan button
+      const startScanButton = document.getElementById('startScanButton');
+      if (startScanButton) {
+        startScanButton.addEventListener('click', () => {
+          this.startSecurityScan();
+        });
+      }
 
-    // View reports button
-    document.getElementById('viewReportsButton').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'http://localhost:5173' });
-    });
+      // View reports button
+      const viewReportsButton = document.getElementById('viewReportsButton');
+      if (viewReportsButton) {
+        viewReportsButton.addEventListener('click', () => {
+          chrome.tabs.create({ url: 'http://localhost:5173' });
+        });
+      }
 
-    // Settings button
-    document.getElementById('settingsButton').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
+      // Settings button
+      const settingsButton = document.getElementById('settingsButton');
+      if (settingsButton) {
+        settingsButton.addEventListener('click', () => {
+          chrome.runtime.openOptionsPage();
+        });
+      }
 
-    // Help button
-    document.getElementById('helpButton').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://trusthunt.com/help' });
-    });
+      // Help button
+      const helpButton = document.getElementById('helpButton');
+      if (helpButton) {
+        helpButton.addEventListener('click', () => {
+          chrome.tabs.create({ url: 'https://trusthunt.com/help' });
+        });
+      }
+    } catch (error) {
+      this.logError('Error setting up event listeners', error);
+    }
   }
 
   async startSecurityScan() {
-    if (this.scanInProgress || !this.orgData) return;
+    if (this.scanInProgress || !this.orgData) {
+      this.logError('Cannot start scan', new Error(this.scanInProgress ? 'Scan already in progress' : 'No org data available'));
+      return;
+    }
 
     this.scanInProgress = true;
     this.showScanningState();
@@ -365,99 +539,113 @@ class TrustHuntPopup {
       this.showOrgDetectedState();
       
     } catch (error) {
-      console.error('Security scan failed:', error);
-      this.showOrgDetectedState();
+      this.logError('Security scan failed', error);
+      this.showErrorState(`Security scan failed: ${error.message}`);
     } finally {
       this.scanInProgress = false;
     }
   }
 
   async simulateSecurityScan() {
-    const progressElement = document.getElementById('progressFill');
-    const progressText = document.getElementById('scanProgress');
-    const itemsScanned = document.getElementById('itemsScanned');
-    const issuesFound = document.getElementById('issuesFound');
+    try {
+      const progressElement = document.getElementById('progressFill');
+      const progressText = document.getElementById('scanProgress');
+      const itemsScanned = document.getElementById('itemsScanned');
+      const issuesFound = document.getElementById('issuesFound');
 
-    const phases = [
-      { text: 'Initializing scan...', duration: 1000 },
-      { text: 'Analyzing Apex classes...', duration: 2000 },
-      { text: 'Checking permissions...', duration: 1500 },
-      { text: 'Scanning for vulnerabilities...', duration: 2500 },
-      { text: 'Generating report...', duration: 1000 }
-    ];
-
-    let totalProgress = 0;
-    let scannedItems = 0;
-    let foundIssues = 0;
-
-    for (let i = 0; i < phases.length; i++) {
-      const phase = phases[i];
-      progressText.textContent = phase.text;
-      
-      const phaseProgress = (i + 1) / phases.length * 100;
-      
-      // Animate progress
-      const startProgress = totalProgress;
-      const endProgress = phaseProgress;
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < phase.duration) {
-        const elapsed = Date.now() - startTime;
-        const progress = startProgress + (endProgress - startProgress) * (elapsed / phase.duration);
-        
-        progressElement.style.width = `${Math.min(progress, 100)}%`;
-        
-        // Update counters
-        scannedItems = Math.floor(progress * 2.5);
-        foundIssues = Math.floor(Math.random() * (scannedItems / 10));
-        
-        itemsScanned.textContent = scannedItems;
-        issuesFound.textContent = foundIssues;
-        
-        await new Promise(resolve => setTimeout(resolve, 50));
+      if (!progressElement || !progressText || !itemsScanned || !issuesFound) {
+        throw new Error('Scan progress elements not found in DOM');
       }
-      
-      totalProgress = phaseProgress;
-    }
 
-    progressElement.style.width = '100%';
-    progressText.textContent = 'Scan completed!';
+      const phases = [
+        { text: 'Initializing scan...', duration: 1000 },
+        { text: 'Analyzing Apex classes...', duration: 2000 },
+        { text: 'Checking permissions...', duration: 1500 },
+        { text: 'Scanning for vulnerabilities...', duration: 2500 },
+        { text: 'Generating report...', duration: 1000 }
+      ];
+
+      let totalProgress = 0;
+      let scannedItems = 0;
+      let foundIssues = 0;
+
+      for (let i = 0; i < phases.length; i++) {
+        const phase = phases[i];
+        progressText.textContent = phase.text;
+        
+        const phaseProgress = (i + 1) / phases.length * 100;
+        
+        // Animate progress
+        const startProgress = totalProgress;
+        const endProgress = phaseProgress;
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < phase.duration) {
+          const elapsed = Date.now() - startTime;
+          const progress = startProgress + (endProgress - startProgress) * (elapsed / phase.duration);
+          
+          progressElement.style.width = `${Math.min(progress, 100)}%`;
+          
+          // Update counters
+          scannedItems = Math.floor(progress * 2.5);
+          foundIssues = Math.floor(Math.random() * (scannedItems / 10));
+          
+          itemsScanned.textContent = scannedItems;
+          issuesFound.textContent = foundIssues;
+          
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        totalProgress = phaseProgress;
+      }
+
+      progressElement.style.width = '100%';
+      progressText.textContent = 'Scan completed!';
+    } catch (error) {
+      this.logError('Error during scan simulation', error);
+      throw error;
+    }
   }
 
   async updateSecurityData() {
-    // Generate mock security data
-    const vulnerabilityCount = Math.floor(Math.random() * 15);
-    const riskScore = Math.max(20, 100 - (vulnerabilityCount * 5) - Math.floor(Math.random() * 20));
+    try {
+      // Generate mock security data
+      const vulnerabilityCount = Math.floor(Math.random() * 15);
+      const riskScore = Math.max(20, 100 - (vulnerabilityCount * 5) - Math.floor(Math.random() * 20));
 
-    const securityData = {
-      lastScan: new Date().toISOString(),
-      riskScore: riskScore,
-      vulnerabilityCount: vulnerabilityCount,
-      scanResults: {
-        apexClasses: Math.floor(Math.random() * 50) + 10,
-        permissions: Math.floor(Math.random() * 20) + 5,
-        users: Math.floor(Math.random() * 100) + 20
-      }
-    };
+      const securityData = {
+        lastScan: new Date().toISOString(),
+        riskScore: riskScore,
+        vulnerabilityCount: vulnerabilityCount,
+        scanResults: {
+          apexClasses: Math.floor(Math.random() * 50) + 10,
+          permissions: Math.floor(Math.random() * 20) + 5,
+          users: Math.floor(Math.random() * 100) + 20
+        }
+      };
 
-    // Update org data
-    this.orgData.securityData = securityData;
-    this.orgData.lastScan = new Date(securityData.lastScan);
-    this.orgData.riskScore = securityData.riskScore;
-    this.orgData.vulnerabilityCount = securityData.vulnerabilityCount;
+      // Update org data
+      this.orgData.securityData = securityData;
+      this.orgData.lastScan = new Date(securityData.lastScan);
+      this.orgData.riskScore = securityData.riskScore;
+      this.orgData.vulnerabilityCount = securityData.vulnerabilityCount;
 
-    // Save to storage
-    const storageKey = `trusthunt_${this.orgData.orgId}`;
-    await chrome.storage.local.set({
-      [storageKey]: securityData
-    });
+      // Save to storage
+      const storageKey = `trusthunt_${this.orgData.orgId}`;
+      await chrome.storage.local.set({
+        [storageKey]: securityData
+      });
 
-    // Notify background script
-    chrome.runtime.sendMessage({
-      type: 'SCAN_COMPLETED',
-      orgId: this.orgData.orgId,
-      data: securityData
-    });
+      // Notify background script
+      chrome.runtime.sendMessage({
+        type: 'SCAN_COMPLETED',
+        orgId: this.orgData.orgId,
+        data: securityData
+      });
+    } catch (error) {
+      this.logError('Error updating security data', error);
+      throw error;
+    }
   }
 
   startPeriodicUpdates() {
