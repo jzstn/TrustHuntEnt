@@ -6,8 +6,8 @@
 
 (function() {
   // Avoid double injection
-  if (window.trustHuntInjected) return;
-  window.trustHuntInjected = true;
+  if (window.trustHuntInjectedScript) return;
+  window.trustHuntInjectedScript = true;
 
   console.log('TrustHunt Enterprise injected script loaded');
 
