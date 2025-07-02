@@ -15,7 +15,14 @@ class TrustHuntBackground {
   setupEventListeners() {
     // Handle extension installation
     chrome.runtime.onInstalled.addListener((details) => {
-      this.handleInstallation(details);
+      if (details.reason === 'install') {
+        // First time installation
+        this.showWelcomeNotification();
+        this.initializeDefaultSettings();
+      } else if (details.reason === 'update') {
+        // Extension update
+        this.handleUpdate(details.previousVersion);
+      }
     });
 
     // Handle messages from popup and content scripts
@@ -40,28 +47,22 @@ class TrustHuntBackground {
     });
   }
 
-  handleInstallation(details) {
-    if (details.reason === 'install') {
-      // First time installation
-      this.showWelcomeNotification();
-      this.initializeDefaultSettings();
-    } else if (details.reason === 'update') {
-      // Extension update
-      this.handleUpdateInstallation(details.previousVersion);
-    }
+  handleInstallation() {
+    // First time installation
+    this.showWelcomeNotification();
+    this.initializeDefaultSettings();
   }
 
-  // Added this missing method
-  handleUpdateInstallation(previousVersion) {
-    console.log(`Extension updated from version ${previousVersion}`);
-    // You can add version-specific update logic here
+  handleUpdate(previousVersion) {
+    console.log(`Extension updated from ${previousVersion}`);
+    // Add update-specific logic here if needed
   }
 
   async showWelcomeNotification() {
     try {
       await chrome.notifications.create('welcome', {
         type: 'basic',
-        iconUrl: 'icons/icon32.png',
+        iconUrl: 'icons/icon48.png',
         title: 'TrustHunt Enterprise Installed',
         message: 'Navigate to any Salesforce org to start security analysis!'
       });
@@ -110,10 +111,9 @@ class TrustHuntBackground {
           await this.updateBadge(message.tabId, message.count);
           sendResponse({ success: true });
           break;
-          
+
         case 'ORG_DETECTED':
-          console.log('Salesforce org detected:', message.orgInfo);
-          await this.handleOrgDetected(message.orgInfo, sender.tab.id);
+          await this.handleOrgDetected(message.orgInfo, sender.tab);
           sendResponse({ success: true });
           break;
 
@@ -126,24 +126,20 @@ class TrustHuntBackground {
     }
   }
 
-  async handleOrgDetected(orgInfo, tabId) {
-    console.log(`Salesforce org detected in tab ${tabId}:`, orgInfo);
+  async handleOrgDetected(orgInfo, tab) {
+    console.log('Salesforce org detected:', orgInfo);
     
     // Store org info
     this.connectedOrgs.set(orgInfo.orgId, {
       ...orgInfo,
-      tabId,
-      detectedAt: new Date()
+      tabId: tab.id
     });
     
     // Update badge
-    await this.updateBadgeForOrg(tabId, orgInfo.orgId);
+    await this.updateBadgeForTab(tab.id, orgInfo.orgId);
     
     // Check for auto-scan
-    const settings = await this.getSettings();
-    if (settings.autoScan) {
-      await this.checkAutoScan(orgInfo.orgId, tabId);
-    }
+    await this.checkAutoScan(tab.id, orgInfo.orgId);
   }
 
   async handleTabUpdate(tabId, changeInfo, tab) {
@@ -156,6 +152,9 @@ class TrustHuntBackground {
         
         // Update badge
         await this.updateBadgeForTab(tabId, tab.url);
+        
+        // Check for auto-scan
+        await this.checkAutoScan(tabId, tab.url);
       } else {
         // Clear badge for non-Salesforce tabs
         await this.clearBadge(tabId);
@@ -206,9 +205,18 @@ class TrustHuntBackground {
     }
   }
 
-  async updateBadgeForTab(tabId, url) {
+  async updateBadgeForTab(tabId, urlOrOrgId) {
     try {
-      const orgId = this.extractOrgIdFromUrl(url);
+      let orgId;
+      
+      if (typeof urlOrOrgId === 'string' && urlOrOrgId.startsWith('http')) {
+        // It's a URL, extract org ID
+        orgId = this.extractOrgIdFromUrl(urlOrOrgId);
+      } else {
+        // It's already an org ID
+        orgId = urlOrOrgId;
+      }
+      
       if (orgId) {
         const securityData = await this.getSecurityData(orgId);
         const vulnerabilityCount = securityData?.vulnerabilityCount || 0;
@@ -240,37 +248,6 @@ class TrustHuntBackground {
     }
   }
 
-  async updateBadgeForOrg(tabId, orgId) {
-    try {
-      const securityData = await this.getSecurityData(orgId);
-      const vulnerabilityCount = securityData?.vulnerabilityCount || 0;
-      
-      if (vulnerabilityCount > 0) {
-        await chrome.action.setBadgeText({
-          text: vulnerabilityCount.toString(),
-          tabId: tabId
-        });
-        
-        await chrome.action.setBadgeBackgroundColor({
-          color: vulnerabilityCount > 5 ? '#ef4444' : '#f59e0b',
-          tabId: tabId
-        });
-      } else {
-        await chrome.action.setBadgeText({
-          text: '✓',
-          tabId: tabId
-        });
-        
-        await chrome.action.setBadgeBackgroundColor({
-          color: '#10b981',
-          tabId: tabId
-        });
-      }
-    } catch (error) {
-      console.error('Error updating badge for org:', error);
-    }
-  }
-
   async clearBadge(tabId) {
     try {
       await chrome.action.setBadgeText({
@@ -294,12 +271,6 @@ class TrustHuntBackground {
         return match[1];
       }
       
-      // For lightning.force.com or develop.lightning.force.com URLs
-      const lightningMatch = hostname.match(/^([^.]+)\.(?:develop\.)?lightning\.force\.com$/);
-      if (lightningMatch) {
-        return lightningMatch[1];
-      }
-      
       // For other patterns, use the full hostname as identifier
       return hostname.replace(/[^a-zA-Z0-9]/g, '_');
     } catch (error) {
@@ -307,10 +278,22 @@ class TrustHuntBackground {
     }
   }
 
-  async checkAutoScan(orgId, tabId) {
+  async checkAutoScan(tabId, urlOrOrgId) {
     try {
       const settings = await this.getSettings();
       if (!settings.autoScan) return;
+
+      let orgId;
+      
+      if (typeof urlOrOrgId === 'string' && urlOrOrgId.startsWith('http')) {
+        // It's a URL, extract org ID
+        orgId = this.extractOrgIdFromUrl(urlOrOrgId);
+      } else {
+        // It's already an org ID
+        orgId = urlOrOrgId;
+      }
+      
+      if (!orgId) return;
 
       const securityData = await this.getSecurityData(orgId);
       const lastScan = securityData?.lastScan ? new Date(securityData.lastScan) : null;
@@ -464,7 +447,7 @@ class TrustHuntBackground {
 
       await chrome.notifications.create(`scan_${orgId}`, {
         type: 'basic',
-        iconUrl: 'icons/icon32.png',
+        iconUrl: 'icons/icon48.png',
         title,
         message
       });
@@ -480,7 +463,7 @@ class TrustHuntBackground {
     try {
       await chrome.notifications.create(`scan_error_${orgId}`, {
         type: 'basic',
-        iconUrl: 'icons/icon32.png',
+        iconUrl: 'icons/icon48.png',
         title: 'Security Scan Failed',
         message: `Scan failed for org ${orgId}: ${error.message}`
       });

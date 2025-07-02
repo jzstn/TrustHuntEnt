@@ -2,10 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useSecurityStore } from '../../store/useSecurityStore';
 import { useSalesforcePasswordAuth } from '../../hooks/useSalesforcePasswordAuth';
 import { useSalesforceTokenAuth } from '../../hooks/useSalesforceTokenAuth';
-import { EnterpriseSecurityOrchestrator } from '../../services/enterprise/EnterpriseSecurityOrchestrator';
-import { RealTimeSecurityMonitor } from '../../services/monitoring/RealTimeSecurityMonitor';
-import { SIEMIntegrationService } from '../../services/integration/SIEMIntegrationService';
-import { CICDIntegrationService } from '../../services/cicd/CICDIntegrationService';
 import { SalesforceConnectionModal } from './SalesforceConnectionModal';
 import { SalesforceTokenModal } from './SalesforceTokenModal';
 import { OAuthTestModal } from './OAuthTestModal';
@@ -13,17 +9,14 @@ import { AuthenticationGuide } from './AuthenticationGuide';
 import { VulnerabilityReportsView } from './VulnerabilityReportsView';
 import { 
   Shield, 
-  Activity, 
   AlertTriangle, 
   AlertCircle,
   TrendingUp, 
   Clock, 
-  Users, 
   Building2,
   Zap,
   Target,
   CheckCircle,
-  XCircle,
   RefreshCw,
   Settings,
   Bell,
@@ -53,43 +46,6 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-interface EnterpriseMetrics {
-  totalOrganizations: number;
-  totalVulnerabilities: number;
-  criticalVulnerabilities: number;
-  averageRiskScore: number;
-  activeScans: number;
-  complianceScore: number;
-  systemHealth: 'healthy' | 'warning' | 'critical';
-  lastUpdated: Date;
-  aiSecurityEvents: number;
-  crossOrgIssues: number;
-  temporalAnomalies: number;
-  dastFindings: number;
-}
-
-interface SecurityAlert {
-  id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  description: string;
-  timestamp: Date;
-  orgId: string;
-  category: 'vulnerability' | 'ai_security' | 'temporal_risk' | 'cross_org' | 'dast' | 'compliance';
-  acknowledged: boolean;
-  assignedTo?: string;
-}
-
-interface ComplianceFramework {
-  name: string;
-  status: 'compliant' | 'partial' | 'non_compliant';
-  score: number;
-  requirements: number;
-  passed: number;
-  failed: number;
-  lastAssessment: Date;
-}
-
 export const TrustHuntDashboard: React.FC = () => {
   const [selectedView, setSelectedView] = useState<'overview' | 'vulnerabilities' | 'ai_security' | 'cross_org' | 'dast' | 'compliance' | 'monitoring'>('overview');
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
@@ -101,8 +57,7 @@ export const TrustHuntDashboard: React.FC = () => {
   const [showAuthGuide, setShowAuthGuide] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isScanning, setIsScanning] = useState(false);
-
-  const [enterpriseMetrics, setEnterpriseMetrics] = useState<EnterpriseMetrics>({
+  const [enterpriseMetrics, setEnterpriseMetrics] = useState({
     totalOrganizations: 0,
     totalVulnerabilities: 0,
     criticalVulnerabilities: 0,
@@ -116,9 +71,8 @@ export const TrustHuntDashboard: React.FC = () => {
     temporalAnomalies: 0,
     dastFindings: 0
   });
-
-  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
-  const [complianceFrameworks, setComplianceFrameworks] = useState<ComplianceFramework[]>([
+  const [securityAlerts, setSecurityAlerts] = useState([]);
+  const [complianceFrameworks, setComplianceFrameworks] = useState([
     {
       name: 'SOC 2 Type II',
       status: 'compliant',
@@ -165,7 +119,12 @@ export const TrustHuntDashboard: React.FC = () => {
     temporalRiskEvents,
     activeScans,
     dashboardMetrics,
-    isLoading
+    isLoading,
+    addVulnerability,
+    addAISecurityEvent,
+    addTemporalRiskEvent,
+    updateDashboardMetrics,
+    setOrganizations
   } = useSecurityStore();
 
   const passwordAuth = useSalesforcePasswordAuth();
@@ -181,24 +140,6 @@ export const TrustHuntDashboard: React.FC = () => {
     performSecurityScan
   } = tokenAuth.isConnected ? tokenAuth : passwordAuth;
 
-  // Initialize enterprise services
-  const [enterpriseOrchestrator] = useState(() => new EnterpriseSecurityOrchestrator({
-    maxConcurrentScans: 10,
-    scanSchedule: { daily: true, weekly: true, monthly: true },
-    alertThresholds: { critical: 5, high: 15, medium: 50 },
-    complianceFrameworks: ['SOC2', 'GDPR', 'HIPAA', 'PCI_DSS'],
-    siemIntegration: true,
-    realTimeMonitoring: true
-  }));
-
-  const [securityMonitor] = useState(() => new RealTimeSecurityMonitor({
-    scanInterval: 30000, // 30 seconds
-    alertThresholds: { critical: 1, high: 5, medium: 20 },
-    enableRealTimeAlerts: true,
-    enableTrendAnalysis: true,
-    retentionPeriod: 90
-  }));
-
   // Update enterprise metrics
   useEffect(() => {
     const criticalCount = vulnerabilities?.filter(v => v.severity === 'critical').length || 0;
@@ -208,7 +149,7 @@ export const TrustHuntDashboard: React.FC = () => {
       : 0;
 
     // Calculate system health
-    let systemHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
+    let systemHealth = 'healthy';
     if (criticalCount > 10) systemHealth = 'critical';
     else if (criticalCount > 5 || highCount > 20) systemHealth = 'warning';
 
@@ -231,7 +172,7 @@ export const TrustHuntDashboard: React.FC = () => {
     });
 
     // Generate security alerts from vulnerabilities
-    const alerts: SecurityAlert[] = vulnerabilities
+    const alerts = vulnerabilities
       ?.filter(v => v.severity === 'critical' || v.severity === 'high')
       .slice(0, 10)
       .map(v => ({
@@ -248,12 +189,6 @@ export const TrustHuntDashboard: React.FC = () => {
     setSecurityAlerts(alerts);
   }, [organizations, vulnerabilities, aiSecurityEvents, crossOrgAnalyses, temporalRiskEvents, activeScans, complianceFrameworks]);
 
-  // Start real-time monitoring
-  useEffect(() => {
-    securityMonitor.startMonitoring();
-    return () => securityMonitor.stopMonitoring();
-  }, [securityMonitor]);
-
   // Update connection status based on auth states
   useEffect(() => {
     if (isConnecting) {
@@ -266,6 +201,142 @@ export const TrustHuntDashboard: React.FC = () => {
       setConnectionStatus('idle');
     }
   }, [isConnecting, connectedOrganizations.length, connectionError]);
+
+  // Generate mock data if no real data exists
+  useEffect(() => {
+    if (organizations.length === 0 && vulnerabilities.length === 0) {
+      generateMockData();
+    }
+  }, []);
+
+  const generateMockData = () => {
+    // Create a mock organization
+    const mockOrg = {
+      id: 'mock-org-1',
+      name: 'TrustHunt Demo Org',
+      type: 'developer',
+      instanceUrl: 'https://trusthunt-dev-ed.develop.lightning.force.com',
+      isConnected: true,
+      lastScanDate: new Date(),
+      riskScore: 75,
+      vulnerabilityCount: 12
+    };
+    
+    setOrganizations([mockOrg]);
+    
+    // Generate mock vulnerabilities
+    const mockVulnerabilities = [
+      {
+        id: 'vuln-1',
+        orgId: 'mock-org-1',
+        type: 'soql_injection',
+        severity: 'critical',
+        title: 'SOQL Injection in Custom Controller',
+        description: 'Dynamic SOQL construction without proper sanitization detected',
+        location: 'CustomController.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 9.1,
+        businessImpact: 'Potential unauthorized data access and database compromise',
+        remediation: 'Use parameterized queries and input validation'
+      },
+      {
+        id: 'vuln-2',
+        orgId: 'mock-org-1',
+        type: 'permission_escalation',
+        severity: 'high',
+        title: 'Missing Sharing Declaration',
+        description: 'Apex class without sharing declaration allows unauthorized data access',
+        location: 'DataProcessor.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 7.5,
+        businessImpact: 'Users may access records they should not have permission to view',
+        remediation: 'Add "with sharing" to class declaration'
+      },
+      {
+        id: 'vuln-3',
+        orgId: 'mock-org-1',
+        type: 'data_exposure',
+        severity: 'medium',
+        title: 'Hardcoded Credentials in Apex',
+        description: 'Sensitive credentials found hardcoded in source code',
+        location: 'IntegrationService.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 6.8,
+        businessImpact: 'Credentials may be exposed to unauthorized users',
+        remediation: 'Use Custom Settings or Named Credentials'
+      }
+    ];
+    
+    mockVulnerabilities.forEach(vuln => addVulnerability(vuln));
+    
+    // Generate mock AI security events
+    const mockAIEvents = [
+      {
+        id: 'ai-1',
+        orgId: 'mock-org-1',
+        eventType: 'einstein_gpt_access',
+        userId: 'user-001',
+        timestamp: new Date(),
+        dataAccessed: ['Account.Name', 'Contact.Email', 'Opportunity.Amount'],
+        riskLevel: 'medium',
+        businessHoursViolation: false,
+        sensitiveDataExposed: true
+      },
+      {
+        id: 'ai-2',
+        orgId: 'mock-org-1',
+        eventType: 'copilot_data_exposure',
+        userId: 'user-002',
+        timestamp: new Date(),
+        dataAccessed: ['Contact.SSN__c', 'Account.Revenue__c'],
+        riskLevel: 'high',
+        businessHoursViolation: true,
+        sensitiveDataExposed: true
+      }
+    ];
+    
+    mockAIEvents.forEach(event => addAISecurityEvent(event));
+    
+    // Generate mock temporal risk events
+    const mockTemporalEvents = [
+      {
+        id: 'temp-1',
+        orgId: 'mock-org-1',
+        userId: 'user-001',
+        eventType: 'after_hours_access',
+        timestamp: new Date(),
+        riskScore: 7.5,
+        businessHoursViolation: true,
+        geographicAnomaly: false,
+        sessionDurationAnomaly: false
+      },
+      {
+        id: 'temp-2',
+        orgId: 'mock-org-1',
+        userId: 'user-003',
+        eventType: 'privilege_escalation',
+        timestamp: new Date(),
+        riskScore: 8.2,
+        businessHoursViolation: false,
+        geographicAnomaly: true,
+        sessionDurationAnomaly: true
+      }
+    ];
+    
+    mockTemporalEvents.forEach(event => addTemporalRiskEvent(event));
+    
+    // Update dashboard metrics
+    updateDashboardMetrics({
+      totalVulnerabilities: mockVulnerabilities.length,
+      criticalVulnerabilities: mockVulnerabilities.filter(v => v.severity === 'critical').length,
+      averageRiskScore: 75,
+      aiSecurityEvents: mockAIEvents.length,
+      temporalAnomalies: mockTemporalEvents.length
+    });
+  };
 
   const handleStartSecurityScan = async () => {
     if (connectedOrganizations.length === 0) {
@@ -290,7 +361,7 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const handlePasswordConnect = async (credentials: any) => {
+  const handlePasswordConnect = async (credentials) => {
     try {
       setConnectionStatus('connecting');
       passwordAuth.clearError();
@@ -304,7 +375,7 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const handleTokenConnect = async (credentials: any) => {
+  const handleTokenConnect = async (credentials) => {
     try {
       setConnectionStatus('connecting');
       tokenAuth.clearError();
@@ -342,7 +413,7 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const getHealthColor = (health: string) => {
+  const getHealthColor = (health) => {
     switch (health) {
       case 'healthy': return 'text-green-600 bg-green-100';
       case 'warning': return 'text-yellow-600 bg-yellow-100';
@@ -351,7 +422,7 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const getComplianceColor = (status: string) => {
+  const getComplianceColor = (status) => {
     switch (status) {
       case 'compliant': return 'text-green-600 bg-green-100';
       case 'partial': return 'text-yellow-600 bg-yellow-100';
@@ -360,7 +431,7 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
+  const getSeverityColor = (severity) => {
     switch (severity) {
       case 'critical': return 'text-red-600 bg-red-100 border-red-200';
       case 'high': return 'text-orange-600 bg-orange-100 border-orange-200';
@@ -410,7 +481,7 @@ export const TrustHuntDashboard: React.FC = () => {
   };
 
   // Handle vulnerability tile clicks
-  const handleVulnerabilityTileClick = (severity?: string) => {
+  const handleVulnerabilityTileClick = (severity) => {
     setSelectedView('vulnerabilities');
   };
 
