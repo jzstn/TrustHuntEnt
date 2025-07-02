@@ -125,22 +125,6 @@ class TrustHuntBackground {
     }
   }
 
-  async handleOrgDetected(orgInfo, tab) {
-    console.log('Salesforce org detected:', orgInfo);
-    
-    // Store org info
-    this.connectedOrgs.set(orgInfo.orgId, {
-      ...orgInfo,
-      tabId: tab.id
-    });
-    
-    // Update badge
-    await this.updateBadgeForTab(tab.id, orgInfo.orgId);
-    
-    // Check for auto-scan
-    await this.checkAutoScan(tab.id, orgInfo.orgId);
-  }
-
   async handleTabUpdate(tabId, changeInfo, tab) {
     if (changeInfo.status === 'complete' && tab.url) {
       const isSalesforce = this.isSalesforceUrl(tab.url);
@@ -370,8 +354,12 @@ class TrustHuntBackground {
     try {
       console.log(`Executing security scan for org: ${scan.orgId}`);
       
-      // Simulate scan execution
-      const scanResult = await this.performSecurityScan(scan.orgId);
+      // Import the SecurityRuleEngine dynamically
+      const { SecurityRuleEngine } = await import('../services/security/SecurityRuleEngine.js');
+      const ruleEngine = SecurityRuleEngine.getInstance();
+      
+      // Simulate scan execution with the rule engine
+      const scanResult = await this.performSecurityScan(scan.orgId, ruleEngine);
       
       // Save results
       await this.saveScanResults(scan.orgId, scanResult);
@@ -385,9 +373,58 @@ class TrustHuntBackground {
     }
   }
 
-  async performSecurityScan(orgId) {
+  async performSecurityScan(orgId, ruleEngine) {
     // Simulate security scan with realistic data
-    const vulnerabilityCount = Math.floor(Math.random() * 20);
+    const mockCodeSamples = [
+      {
+        name: "AccountController",
+        body: `public class AccountController {
+          public List<Account> searchAccounts(String searchTerm) {
+            String query = 'SELECT Id, Name FROM Account WHERE Name LIKE \\'' + searchTerm + '\\'';
+            return Database.query(query);
+          }
+        }`
+      },
+      {
+        name: "OpportunityService",
+        body: `public class OpportunityService {
+          public void updateOpportunities(List<Opportunity> opps) {
+            update opps;
+          }
+        }`
+      },
+      {
+        name: "IntegrationService",
+        body: `public class IntegrationService {
+          private static final String API_KEY = 'ak_live_51KdJkEFjx7pL8Jn5vVCizU7Fb';
+          
+          public static void callExternalService() {
+            // API call logic
+            System.debug('Using API key: ' + API_KEY);
+          }
+        }`
+      },
+      {
+        name: "UserService",
+        body: `public class UserService {
+          public User getUserDetails(String userId) {
+            User u = [SELECT Id, Name, Email, Phone FROM User WHERE Id = :userId];
+            System.debug('User email: ' + u.Email);
+            return u;
+          }
+        }`
+      }
+    ];
+    
+    // Analyze code samples using the rule engine
+    const vulnerabilities = [];
+    
+    mockCodeSamples.forEach(sample => {
+      const vulns = ruleEngine.analyzeCode(sample.body, `${sample.name}.cls`, orgId);
+      vulnerabilities.push(...vulns);
+    });
+    
+    const vulnerabilityCount = vulnerabilities.length;
     const riskScore = Math.max(20, 100 - (vulnerabilityCount * 3) - Math.floor(Math.random() * 30));
     
     return {
@@ -397,11 +434,12 @@ class TrustHuntBackground {
       completedAt: new Date(Date.now() + 30000).toISOString(), // 30 seconds later
       riskScore,
       vulnerabilityCount,
+      vulnerabilities,
       findings: {
-        critical: Math.floor(vulnerabilityCount * 0.1),
-        high: Math.floor(vulnerabilityCount * 0.2),
-        medium: Math.floor(vulnerabilityCount * 0.4),
-        low: Math.floor(vulnerabilityCount * 0.3)
+        critical: vulnerabilities.filter(v => v.severity === 'critical').length,
+        high: vulnerabilities.filter(v => v.severity === 'high').length,
+        medium: vulnerabilities.filter(v => v.severity === 'medium').length,
+        low: vulnerabilities.filter(v => v.severity === 'low').length
       },
       categories: {
         apex: Math.floor(Math.random() * 10),
@@ -417,6 +455,7 @@ class TrustHuntBackground {
       lastScan: scanResult.completedAt,
       riskScore: scanResult.riskScore,
       vulnerabilityCount: scanResult.vulnerabilityCount,
+      vulnerabilities: scanResult.vulnerabilities,
       scanHistory: [scanResult]
     };
 
@@ -553,6 +592,22 @@ class TrustHuntBackground {
     } catch (error) {
       console.error('Error cleaning up old data:', error);
     }
+  }
+
+  async handleOrgDetected(orgInfo, tab) {
+    console.log('Salesforce org detected:', orgInfo);
+    
+    // Store org info
+    this.connectedOrgs.set(orgInfo.orgId, {
+      ...orgInfo,
+      tabId: tab.id
+    });
+    
+    // Update badge
+    await this.updateBadgeForTab(tab.id, orgInfo.orgId);
+    
+    // Check for auto-scan
+    await this.checkAutoScan(tab.id, orgInfo.orgId);
   }
 
   async getOrgInfo(tab) {

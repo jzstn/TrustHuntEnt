@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   AlertTriangle, 
@@ -18,57 +18,12 @@ import {
   ArrowLeft
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useSecurityStore } from '../../store/useSecurityStore';
+import { SecurityRuleEngine } from '../../services/security/SecurityRuleEngine';
 
 interface ScanResultsViewProps {
   onBack?: () => void;
   scanId?: string;
-}
-
-// Comprehensive scan result format based on the requirements
-interface ScanResult {
-  generatedAt: string;
-  scanMetadata: {
-    scanType: string;
-    coverage: {
-      apexClasses: number;
-      testClasses: number;
-      visualforcePages: number;
-      lightningComponents: number;
-      profiles: number;
-      users: number;
-    }
-  };
-  summary: {
-    total: number;
-    critical: number;
-    high: number;
-    medium: number;
-    low: number;
-    avgCvss: number;
-    riskScore: number;
-  };
-  vulnerabilities: Array<{
-    id: string;
-    title: string;
-    severity: 'critical' | 'high' | 'medium' | 'low';
-    type: string;
-    cvssScore: number;
-    location: string;
-    lineNumber?: number;
-    description: string;
-    businessImpact: string;
-    remediation: string;
-    cweId?: string;
-    discoveredAt: string;
-    evidence: string;
-    severity_justification: string;
-  }>;
-  recommendations: {
-    immediate: string[];
-    shortTerm: string[];
-    longTerm: string[];
-    compliance: string[];
-  };
 }
 
 export const ScanResultsView: React.FC<ScanResultsViewProps> = ({ onBack, scanId }) => {
@@ -77,184 +32,178 @@ export const ScanResultsView: React.FC<ScanResultsViewProps> = ({ onBack, scanId
   const [selectedType, setSelectedType] = useState<string>('all');
   const [expandedVulns, setExpandedVulns] = useState<Set<string>>(new Set());
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['summary', 'critical']));
+  const { vulnerabilities } = useSecurityStore();
+  const [scanResult, setScanResult] = useState<any>(null);
 
-  // Sample scan result data
-  const scanResult: ScanResult = {
-    generatedAt: new Date().toISOString(),
-    scanMetadata: {
-      scanType: "unified_comprehensive",
-      coverage: {
-        apexClasses: 156,
-        testClasses: 87,
-        visualforcePages: 42,
-        lightningComponents: 68,
-        profiles: 15,
-        users: 124
-      }
-    },
-    summary: {
-      total: 28,
-      critical: 3,
-      high: 8,
-      medium: 12,
-      low: 5,
-      avgCvss: 6.7,
-      riskScore: 68
-    },
-    vulnerabilities: [
-      {
-        id: "SOQL-INJ-001",
-        title: "SOQL Injection in AccountController.cls",
-        severity: "critical",
-        type: "soql_injection",
-        cvssScore: 9.1,
-        location: "classes/AccountController.cls",
-        lineNumber: 42,
-        description: "Dynamic SOQL query constructed with user input without proper sanitization",
-        businessImpact: "Attackers could access unauthorized data, potentially exposing sensitive customer information",
-        remediation: "Use parameterized queries with proper binding or apply String.escapeSingleQuotes() to user input",
-        cweId: "CWE-89",
-        discoveredAt: new Date().toISOString(),
-        evidence: "String query = 'SELECT Id, Name FROM Account WHERE Name LIKE \\'' + searchTerm + '\\'';",
-        severity_justification: "Critical due to direct exposure of customer data and potential for complete database access"
-      },
-      {
-        id: "SHARING-001",
-        title: "Missing Sharing Declaration in OpportunityService.cls",
-        severity: "high",
-        type: "crud_fls_violation",
-        cvssScore: 7.5,
-        location: "classes/OpportunityService.cls",
-        lineNumber: 1,
-        description: "Apex class does not specify sharing model, defaulting to 'without sharing'",
-        businessImpact: "Users may access records they should not have permission to view or modify",
-        remediation: "Add 'with sharing' to class declaration to enforce sharing rules",
-        cweId: "CWE-732",
-        discoveredAt: new Date().toISOString(),
-        evidence: "public class OpportunityService {",
-        severity_justification: "High severity due to potential data leakage across multiple records"
-      },
-      {
-        id: "CRED-001",
-        title: "Hardcoded API Key in IntegrationService.cls",
-        severity: "critical",
-        type: "data_exposure",
-        cvssScore: 8.8,
-        location: "classes/IntegrationService.cls",
-        lineNumber: 24,
-        description: "API key hardcoded in Apex class source code",
-        businessImpact: "Credentials may be exposed to unauthorized users with code access",
-        remediation: "Store sensitive credentials in Custom Settings or Named Credentials",
-        cweId: "CWE-798",
-        discoveredAt: new Date().toISOString(),
-        evidence: "private static final String API_KEY = 'ak_live_51KdJkEFjx7pL8Jn5vVCizU7Fb';",
-        severity_justification: "Critical due to exposure of production credentials that could lead to system compromise"
-      },
-      {
-        id: "XSS-001",
-        title: "Reflected XSS in AccountDetail.page",
-        severity: "high",
-        type: "xss",
-        cvssScore: 6.5,
-        location: "pages/AccountDetail.page",
-        lineNumber: 37,
-        description: "Visualforce page outputs URL parameter without encoding",
-        businessImpact: "Attackers could inject malicious scripts executed in users' browsers",
-        remediation: "Use HTMLENCODE() or JSENCODE() functions to encode user input",
-        cweId: "CWE-79",
-        discoveredAt: new Date().toISOString(),
-        evidence: "<apex:outputText value=\"{!$Request.name}\" escape=\"false\"/>",
-        severity_justification: "High severity due to potential for session hijacking and credential theft"
-      },
-      {
-        id: "PERM-001",
-        title: "Excessive System Administrator Profiles",
-        severity: "high",
-        type: "permission_escalation",
-        cvssScore: 7.2,
-        location: "Profile Configuration",
-        description: "5 custom System Administrator profiles detected with full system access",
-        businessImpact: "Increased attack surface and potential for privilege abuse",
-        remediation: "Consolidate admin profiles and implement least privilege principle",
-        cweId: "CWE-250",
-        discoveredAt: new Date().toISOString(),
-        evidence: "Custom Admin (5), Sales Admin (3), Marketing Admin (2), Support Admin (1), Integration Admin (4)",
-        severity_justification: "High severity due to excessive administrative access across the organization"
-      },
-      {
-        id: "CRUD-001",
-        title: "Missing CRUD Checks in ContactController.cls",
-        severity: "medium",
-        type: "crud_fls_violation",
-        cvssScore: 5.4,
-        location: "classes/ContactController.cls",
-        lineNumber: 78,
-        description: "DML operations performed without checking CRUD permissions",
-        businessImpact: "Users may perform operations they lack permission for",
-        remediation: "Add CRUD permission checks using Schema.sObjectType.Contact.isUpdateable() before DML operations",
-        cweId: "CWE-732",
-        discoveredAt: new Date().toISOString(),
-        evidence: "update contacts;",
-        severity_justification: "Medium severity as it requires existing access to the application"
-      },
-      {
-        id: "FLS-001",
-        title: "Missing Field-Level Security Checks in LeadService.cls",
-        severity: "medium",
-        type: "crud_fls_violation",
-        cvssScore: 5.2,
-        location: "classes/LeadService.cls",
-        lineNumber: 103,
-        description: "Sensitive fields accessed without FLS checks",
-        businessImpact: "Users may access field data they shouldn't have permission to view",
-        remediation: "Add field-level security checks using Schema.sObjectType.Lead.fields.Email.isAccessible()",
-        cweId: "CWE-732",
-        discoveredAt: new Date().toISOString(),
-        evidence: "Lead.Email, Lead.Phone, Lead.AnnualRevenue accessed without FLS checks",
-        severity_justification: "Medium severity due to potential exposure of sensitive lead information"
-      },
-      {
-        id: "INACT-001",
-        title: "Inactive Users with Admin Access",
-        severity: "medium",
-        type: "permission_escalation",
-        cvssScore: 6.2,
-        location: "User Management",
-        description: "3 inactive users with System Administrator profile",
-        businessImpact: "Dormant accounts may be compromised without detection",
-        remediation: "Deactivate or remove admin privileges from inactive user accounts",
-        cweId: "CWE-16",
-        discoveredAt: new Date().toISOString(),
-        evidence: "Users inactive for 90+ days: admin1@example.com, integration.user@example.com, temp.admin@example.com",
-        severity_justification: "Medium severity due to potential for account takeover"
-      }
-    ],
-    recommendations: {
-      immediate: [
-        "Remove hardcoded API keys from IntegrationService.cls",
-        "Fix SOQL injection vulnerability in AccountController.cls",
-        "Add encoding to AccountDetail.page to prevent XSS"
-      ],
-      shortTerm: [
-        "Implement 'with sharing' declarations in all Apex classes",
-        "Add CRUD/FLS checks to all data operations",
-        "Consolidate System Administrator profiles",
-        "Deactivate or downgrade inactive admin users"
-      ],
-      longTerm: [
-        "Implement a secure coding review process",
-        "Establish regular security scanning in CI/CD pipeline",
-        "Create a comprehensive security testing suite",
-        "Develop organization-wide security standards"
-      ],
-      compliance: [
-        "Document remediation for SOX compliance",
-        "Update security controls documentation for GDPR",
-        "Implement additional logging for compliance audits",
-        "Establish quarterly security review process"
-      ]
-    }
-  };
+  // Generate scan results using the rule engine
+  useEffect(() => {
+    const generateScanResults = async () => {
+      // Create mock code samples
+      const mockCodeSamples = [
+        {
+          name: "AccountController",
+          body: `public class AccountController {
+            public List<Account> searchAccounts(String searchTerm) {
+              String query = 'SELECT Id, Name FROM Account WHERE Name LIKE \\'' + searchTerm + '\\'';
+              return Database.query(query);
+            }
+          }`
+        },
+        {
+          name: "OpportunityService",
+          body: `public class OpportunityService {
+            public void updateOpportunities(List<Opportunity> opps) {
+              update opps;
+            }
+          }`
+        },
+        {
+          name: "IntegrationService",
+          body: `public class IntegrationService {
+            private static final String API_KEY = 'ak_live_51KdJkEFjx7pL8Jn5vVCizU7Fb';
+            
+            public static void callExternalService() {
+              // API call logic
+              System.debug('Using API key: ' + API_KEY);
+            }
+          }`
+        },
+        {
+          name: "UserService",
+          body: `public class UserService {
+            public User getUserDetails(String userId) {
+              User u = [SELECT Id, Name, Email, Phone FROM User WHERE Id = :userId];
+              System.debug('User email: ' + u.Email);
+              return u;
+            }
+          }`
+        },
+        {
+          name: "LeadController",
+          body: `public with sharing class LeadController {
+            public void convertLead(String leadId) {
+              Lead l = [SELECT Id, Status FROM Lead WHERE Id = :leadId];
+              Database.LeadConvert lc = new Database.LeadConvert();
+              lc.setLeadId(leadId);
+              Database.convertLead(lc);
+              System.debug('Lead converted: ' + leadId);
+            }
+          }`
+        },
+        {
+          name: "AccountDetailPage",
+          body: `<apex:page controller="AccountController">
+            <apex:outputText value="{!$Request.name}" escape="false"/>
+            <apex:outputPanel>
+              <script>
+                var accountId = '{!$CurrentPage.parameters.id}';
+                console.log(accountId);
+              </script>
+            </apex:outputPanel>
+          </apex:page>`
+        }
+      ];
+
+      // Use the rule engine to analyze the code samples
+      const ruleEngine = SecurityRuleEngine.getInstance();
+      const detectedVulnerabilities = [];
+      
+      mockCodeSamples.forEach(sample => {
+        const vulns = ruleEngine.analyzeCode(sample.body, `${sample.name}.${sample.name.includes('Page') ? 'page' : 'cls'}`, 'demo-org');
+        detectedVulnerabilities.push(...vulns);
+      });
+
+      // Calculate metrics
+      const criticalCount = detectedVulnerabilities.filter(v => v.severity === 'critical').length;
+      const highCount = detectedVulnerabilities.filter(v => v.severity === 'high').length;
+      const mediumCount = detectedVulnerabilities.filter(v => v.severity === 'medium').length;
+      const lowCount = detectedVulnerabilities.filter(v => v.severity === 'low').length;
+      const totalCount = detectedVulnerabilities.length;
+      const riskScore = ruleEngine.calculateRiskScore(detectedVulnerabilities);
+
+      // Create scan result object
+      const result = {
+        generatedAt: new Date().toISOString(),
+        scanMetadata: {
+          scanType: "unified_comprehensive",
+          coverage: {
+            apexClasses: 156,
+            testClasses: 87,
+            visualforcePages: 42,
+            lightningComponents: 68,
+            profiles: 15,
+            users: 124
+          }
+        },
+        summary: {
+          total: totalCount,
+          critical: criticalCount,
+          high: highCount,
+          medium: mediumCount,
+          low: lowCount,
+          avgCvss: detectedVulnerabilities.reduce((sum, v) => sum + v.cvssScore, 0) / (totalCount || 1),
+          riskScore
+        },
+        vulnerabilities: detectedVulnerabilities.map(v => ({
+          id: v.id,
+          title: v.title,
+          severity: v.severity,
+          type: v.type,
+          cvssScore: v.cvssScore,
+          location: v.location,
+          lineNumber: 1, // Mock line number
+          description: v.description,
+          businessImpact: v.businessImpact,
+          remediation: v.remediation,
+          cweId: v.type === 'soql_injection' ? 'CWE-89' : 
+                 v.type === 'crud_fls_violation' ? 'CWE-732' : 
+                 v.type === 'data_exposure' ? 'CWE-798' : 
+                 v.type === 'xss' ? 'CWE-79' : undefined,
+          discoveredAt: v.discoveredAt.toISOString(),
+          evidence: v.evidence?.[0]?.content || "No evidence available",
+          severity_justification: `${v.severity.charAt(0).toUpperCase() + v.severity.slice(1)} severity due to ${v.businessImpact.toLowerCase()}`
+        })),
+        recommendations: {
+          immediate: [
+            "Remove hardcoded API keys from IntegrationService.cls",
+            "Fix SOQL injection vulnerability in AccountController.cls",
+            "Add encoding to AccountDetailPage.page to prevent XSS"
+          ],
+          shortTerm: [
+            "Implement 'with sharing' declarations in all Apex classes",
+            "Add CRUD/FLS checks to all data operations",
+            "Consolidate System Administrator profiles",
+            "Deactivate or downgrade inactive admin users"
+          ],
+          longTerm: [
+            "Implement a secure coding review process",
+            "Establish regular security scanning in CI/CD pipeline",
+            "Create a comprehensive security testing suite",
+            "Develop organization-wide security standards"
+          ],
+          compliance: [
+            "Document remediation for SOX compliance",
+            "Update security controls documentation for GDPR",
+            "Implement additional logging for compliance audits",
+            "Establish quarterly security review process"
+          ]
+        }
+      };
+
+      setScanResult(result);
+    };
+
+    generateScanResults();
+  }, []);
+
+  if (!scanResult) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Generating scan results...</span>
+      </div>
+    );
+  }
 
   // Filter vulnerabilities based on search and filters
   const filteredVulnerabilities = scanResult.vulnerabilities.filter(vuln => {

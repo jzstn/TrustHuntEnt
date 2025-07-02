@@ -1,5 +1,6 @@
 import { SalesforceAPIClient } from './SalesforceAPIClient';
 import { Vulnerability, AISecurityEvent, TemporalRiskEvent } from '../../types';
+import { SecurityRuleEngine } from '../security/SecurityRuleEngine';
 
 export interface SecurityAnalysisResult {
   success: boolean;
@@ -30,10 +31,12 @@ export interface SecurityAnalysisResult {
 export class SecurityAnalysisService {
   private apiClient: SalesforceAPIClient;
   private orgId: string;
+  private ruleEngine: SecurityRuleEngine;
 
   constructor(apiClient: SalesforceAPIClient, orgId: string) {
     this.apiClient = apiClient;
     this.orgId = orgId;
+    this.ruleEngine = SecurityRuleEngine.getInstance();
   }
 
   /**
@@ -122,7 +125,7 @@ export class SecurityAnalysisService {
 
       // Calculate metrics
       const metrics = this.calculateSecurityMetrics(allVulnerabilities);
-      const riskScore = this.calculateRiskScore(allVulnerabilities);
+      const riskScore = this.ruleEngine.calculateRiskScore(allVulnerabilities);
 
       console.log(`✅ Security analysis completed: ${allVulnerabilities.length} vulnerabilities found`);
 
@@ -204,21 +207,9 @@ export class SecurityAnalysisService {
       for (const apexClass of apexClasses) {
         if (!apexClass.Body) continue;
 
-        // Analyze for SOQL injection vulnerabilities
-        const soqlVulns = this.detectSOQLInjection(apexClass);
-        vulnerabilities.push(...soqlVulns);
-
-        // Analyze for CRUD/FLS violations
-        const crudVulns = this.detectCRUDFLSViolations(apexClass);
-        vulnerabilities.push(...crudVulns);
-
-        // Analyze for hardcoded credentials
-        const credVulns = this.detectHardcodedCredentials(apexClass);
-        vulnerabilities.push(...credVulns);
-
-        // Analyze for other security issues
-        const otherVulns = this.detectOtherSecurityIssues(apexClass);
-        vulnerabilities.push(...otherVulns);
+        // Use the rule engine to analyze the Apex class
+        const classVulns = this.ruleEngine.analyzeApexClass(apexClass, this.orgId);
+        vulnerabilities.push(...classVulns);
       }
 
       console.log(`✅ Apex analysis complete: ${vulnerabilities.length} issues found`);
@@ -234,205 +225,6 @@ export class SecurityAnalysisService {
     }
 
     return { vulnerabilities, complianceIssues };
-  }
-
-  /**
-   * Detect SOQL injection vulnerabilities
-   */
-  private detectSOQLInjection(apexClass: any): Vulnerability[] {
-    const vulnerabilities: Vulnerability[] = [];
-    const body = apexClass.Body || '';
-
-    // Patterns for dynamic SOQL construction
-    const soqlPatterns = [
-      {
-        pattern: /String\s+\w+\s*=\s*['"]SELECT\s+.*?\+\s*\w+/gi,
-        description: 'Dynamic SOQL string concatenation detected'
-      },
-      {
-        pattern: /Database\.query\s*\(\s*['"].*?\+\s*\w+/gi,
-        description: 'Database.query with string concatenation'
-      },
-      {
-        pattern: /\[\s*SELECT\s+.*?\+\s*\w+/gi,
-        description: 'SOQL query with variable concatenation'
-      },
-      {
-        pattern: /WHERE\s+\w+\s*=\s*['"]?\s*\+\s*\w+/gi,
-        description: 'WHERE clause with direct variable concatenation'
-      }
-    ];
-
-    soqlPatterns.forEach((patternInfo, index) => {
-      const matches = body.match(patternInfo.pattern);
-      if (matches) {
-        matches.forEach((match, matchIndex) => {
-          vulnerabilities.push({
-            id: `soql-${apexClass.Id}-${index}-${matchIndex}`,
-            orgId: this.orgId,
-            type: 'soql_injection',
-            severity: 'critical',
-            title: `SOQL Injection Risk in ${apexClass.Name}`,
-            description: patternInfo.description,
-            location: `${apexClass.Name}.cls`,
-            discoveredAt: new Date(),
-            status: 'open',
-            cvssScore: 9.1,
-            businessImpact: 'Potential unauthorized data access, data manipulation, or complete database compromise',
-            remediation: 'Use parameterized queries, input validation, and String.escapeSingleQuotes() method',
-            evidence: [{
-              type: 'code_snippet',
-              content: match.substring(0, 200) + (match.length > 200 ? '...' : ''),
-              timestamp: new Date()
-            }]
-          });
-        });
-      }
-    });
-
-    return vulnerabilities;
-  }
-
-  /**
-   * Detect CRUD/FLS violations
-   */
-  private detectCRUDFLSViolations(apexClass: any): Vulnerability[] {
-    const vulnerabilities: Vulnerability[] = [];
-    const body = apexClass.Body || '';
-
-    // Check for missing sharing declarations
-    if (!body.includes('with sharing') && !body.includes('inherited sharing') && !body.includes('without sharing')) {
-      vulnerabilities.push({
-        id: `crud-${apexClass.Id}-sharing`,
-        orgId: this.orgId,
-        type: 'crud_fls_violation',
-        severity: 'high',
-        title: `Missing Sharing Declaration in ${apexClass.Name}`,
-        description: 'Class does not declare sharing behavior, potentially allowing unauthorized data access',
-        location: `${apexClass.Name}.cls`,
-        discoveredAt: new Date(),
-        status: 'open',
-        cvssScore: 7.5,
-        businessImpact: 'Users may access records they should not have permission to view or modify',
-        remediation: 'Add "with sharing", "inherited sharing", or explicitly "without sharing" to class declaration'
-      });
-    }
-
-    // Check for DML operations without permission checks
-    const dmlPatterns = [
-      { pattern: /insert\s+\w+/gi, operation: 'INSERT' },
-      { pattern: /update\s+\w+/gi, operation: 'UPDATE' },
-      { pattern: /delete\s+\w+/gi, operation: 'DELETE' },
-      { pattern: /upsert\s+\w+/gi, operation: 'UPSERT' }
-    ];
-
-    const hasPermissionChecks = body.includes('Schema.sObjectType') || 
-                               body.includes('isAccessible') || 
-                               body.includes('isCreateable') || 
-                               body.includes('isUpdateable') || 
-                               body.includes('isDeletable');
-
-    if (!hasPermissionChecks) {
-      dmlPatterns.forEach((dmlInfo, index) => {
-        const matches = body.match(dmlInfo.pattern);
-        if (matches) {
-          vulnerabilities.push({
-            id: `crud-${apexClass.Id}-dml-${index}`,
-            orgId: this.orgId,
-            type: 'crud_fls_violation',
-            severity: 'medium',
-            title: `Missing CRUD Check for ${dmlInfo.operation} in ${apexClass.Name}`,
-            description: `${dmlInfo.operation} operation without explicit CRUD permission checking`,
-            location: `${apexClass.Name}.cls`,
-            discoveredAt: new Date(),
-            status: 'open',
-            cvssScore: 5.4,
-            businessImpact: 'Users may perform operations they lack permission for',
-            remediation: `Add CRUD permission checks using Schema.sObjectType.${dmlInfo.operation === 'INSERT' ? 'isCreateable()' : dmlInfo.operation === 'UPDATE' ? 'isUpdateable()' : 'isDeletable()'} before DML operations`
-          });
-        }
-      });
-    }
-
-    return vulnerabilities;
-  }
-
-  /**
-   * Detect hardcoded credentials
-   */
-  private detectHardcodedCredentials(apexClass: any): Vulnerability[] {
-    const vulnerabilities: Vulnerability[] = [];
-    const body = apexClass.Body || '';
-
-    const credentialPatterns = [
-      { pattern: /password\s*=\s*['"][^'"]{6,}['"]/gi, type: 'password' },
-      { pattern: /apikey\s*=\s*['"][^'"]{10,}['"]/gi, type: 'API key' },
-      { pattern: /secret\s*=\s*['"][^'"]{10,}['"]/gi, type: 'secret' },
-      { pattern: /token\s*=\s*['"][^'"]{20,}['"]/gi, type: 'token' },
-      { pattern: /key\s*=\s*['"][^'"]{15,}['"]/gi, type: 'key' }
-    ];
-
-    credentialPatterns.forEach((credInfo, index) => {
-      const matches = body.match(credInfo.pattern);
-      if (matches) {
-        matches.forEach((match, matchIndex) => {
-          vulnerabilities.push({
-            id: `cred-${apexClass.Id}-${index}-${matchIndex}`,
-            orgId: this.orgId,
-            type: 'data_exposure',
-            severity: 'high',
-            title: `Hardcoded ${credInfo.type} in ${apexClass.Name}`,
-            description: `Sensitive ${credInfo.type} found hardcoded in source code`,
-            location: `${apexClass.Name}.cls`,
-            discoveredAt: new Date(),
-            status: 'open',
-            cvssScore: 7.8,
-            businessImpact: 'Credentials may be exposed to unauthorized users with code access',
-            remediation: 'Use Custom Settings, Custom Metadata Types, or Named Credentials to store sensitive information'
-          });
-        });
-      }
-    });
-
-    return vulnerabilities;
-  }
-
-  /**
-   * Detect other security issues
-   */
-  private detectOtherSecurityIssues(apexClass: any): Vulnerability[] {
-    const vulnerabilities: Vulnerability[] = [];
-    const body = apexClass.Body || '';
-
-    // Check for potential XSS in Visualforce controllers
-    if (body.includes('PageReference') || body.includes('ApexPages')) {
-      const xssPatterns = [
-        /ApexPages\.currentPage\(\)\.getParameters\(\)\.get\([^)]+\)/gi,
-        /String\s+\w+\s*=\s*ApexPages\.currentPage\(\)/gi
-      ];
-
-      xssPatterns.forEach((pattern, index) => {
-        const matches = body.match(pattern);
-        if (matches && !body.includes('String.escapeSingleQuotes') && !body.includes('HTMLENCODE')) {
-          vulnerabilities.push({
-            id: `xss-${apexClass.Id}-${index}`,
-            orgId: this.orgId,
-            type: 'xss',
-            severity: 'medium',
-            title: `Potential XSS in ${apexClass.Name}`,
-            description: 'User input from page parameters used without proper encoding',
-            location: `${apexClass.Name}.cls`,
-            discoveredAt: new Date(),
-            status: 'open',
-            cvssScore: 6.1,
-            businessImpact: 'Potential cross-site scripting attacks against users',
-            remediation: 'Use String.escapeSingleQuotes(), HTMLENCODE(), or JSENCODE() functions'
-          });
-        }
-      });
-    }
-
-    return vulnerabilities;
   }
 
   /**
@@ -729,28 +521,8 @@ export class SecurityAnalysisService {
       highVulnerabilities: highCount,
       mediumVulnerabilities: mediumCount,
       lowVulnerabilities: lowCount,
-      securityScore: this.calculateRiskScore(vulnerabilities),
+      securityScore: this.ruleEngine.calculateRiskScore(vulnerabilities),
       lastUpdated: new Date()
     };
-  }
-
-  /**
-   * Calculate overall risk score
-   */
-  private calculateRiskScore(vulnerabilities: Vulnerability[]): number {
-    if (vulnerabilities.length === 0) return 100;
-
-    const criticalCount = vulnerabilities.filter(v => v.severity === 'critical').length;
-    const highCount = vulnerabilities.filter(v => v.severity === 'high').length;
-    const mediumCount = vulnerabilities.filter(v => v.severity === 'medium').length;
-    const lowCount = vulnerabilities.filter(v => v.severity === 'low').length;
-
-    // Weight the vulnerabilities by severity
-    const weightedScore = (criticalCount * 25) + (highCount * 15) + (mediumCount * 8) + (lowCount * 3);
-    
-    // Calculate risk score (0-100, where 100 is best)
-    const riskScore = Math.max(0, 100 - weightedScore);
-    
-    return Math.round(riskScore);
   }
 }

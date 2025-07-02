@@ -386,6 +386,11 @@
           if (node.textContent && this.containsSensitiveData(node.textContent)) {
             this.reportSecurityIssue('sensitive_data_exposure', node);
           }
+          
+          // Check for debug statements
+          if (node.textContent && node.textContent.includes('System.debug')) {
+            this.reportSecurityIssue('debug_statement', node);
+          }
         }
       });
     }
@@ -394,7 +399,10 @@
       const sensitivePatterns = [
         /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/, // Credit card
         /\b\d{3}-\d{2}-\d{4}\b/, // SSN
-        /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/ // Email (basic)
+        /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/, // Email (basic)
+        /password\s*=\s*['"][^'"]{6,}['"]/, // Password
+        /apikey\s*=\s*['"][^'"]{10,}['"]/, // API key
+        /secret\s*=\s*['"][^'"]{10,}['"]/ // Secret
       ];
       
       return sensitivePatterns.some(pattern => pattern.test(text));

@@ -14,14 +14,27 @@ class TrustHuntPopup {
   }
 
   async getCurrentTab() {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    this.currentTab = tab;
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      this.currentTab = tab;
+    } catch (error) {
+      console.error('Error getting current tab:', error);
+      this.showErrorState('Could not access current tab');
+    }
   }
 
   async detectSalesforceOrg() {
-    if (!this.currentTab) return;
+    if (!this.currentTab) {
+      this.showErrorState('No active tab found');
+      return;
+    }
 
     const url = this.currentTab.url;
+    if (!url) {
+      this.showErrorState('No URL in current tab');
+      return;
+    }
+    
     const isSalesforce = this.isSalesforceUrl(url);
 
     if (!isSalesforce) {
@@ -44,7 +57,7 @@ class TrustHuntPopup {
       }
     } catch (error) {
       console.error('Error detecting org:', error);
-      this.showNotSalesforceState();
+      this.showErrorState('Failed to detect Salesforce organization');
     }
   }
 
@@ -55,7 +68,8 @@ class TrustHuntPopup {
       /https:\/\/.*\.salesforce\.com/,
       /https:\/\/.*\.force\.com/,
       /https:\/\/.*\.my\.salesforce\.com/,
-      /https:\/\/.*\.lightning\.force\.com/
+      /https:\/\/.*\.lightning\.force\.com/,
+      /https:\/\/.*\.develop\.lightning\.force\.com/
     ];
     
     return salesforcePatterns.some(pattern => pattern.test(url));
@@ -162,12 +176,14 @@ class TrustHuntPopup {
         this.orgData.lastScan = new Date(data.lastScan);
         this.orgData.riskScore = data.riskScore || 0;
         this.orgData.vulnerabilityCount = data.vulnerabilityCount || 0;
+        this.orgData.vulnerabilities = data.vulnerabilities || [];
       } else {
         // Default values for new orgs
         this.orgData.securityData = null;
         this.orgData.lastScan = null;
         this.orgData.riskScore = 0;
         this.orgData.vulnerabilityCount = 0;
+        this.orgData.vulnerabilities = [];
       }
     } catch (error) {
       console.error('Error loading security data:', error);
@@ -186,6 +202,19 @@ class TrustHuntPopup {
     this.updateConnectionStatus('error', 'Not Salesforce');
   }
 
+  showErrorState(message) {
+    this.hideAllStates();
+    const errorState = document.getElementById('errorState');
+    const errorMessage = document.getElementById('errorMessage');
+    
+    if (errorState && errorMessage) {
+      errorMessage.textContent = message || 'An unexpected error occurred';
+      errorState.classList.remove('hidden');
+    }
+    
+    this.updateConnectionStatus('error', 'Error');
+  }
+
   showOrgDetectedState() {
     this.hideAllStates();
     document.getElementById('orgDetectedState').classList.remove('hidden');
@@ -200,16 +229,23 @@ class TrustHuntPopup {
   }
 
   hideAllStates() {
-    const states = ['loadingState', 'notSalesforceState', 'orgDetectedState', 'scanningState'];
+    const states = ['loadingState', 'notSalesforceState', 'orgDetectedState', 'scanningState', 'errorState'];
     states.forEach(state => {
-      document.getElementById(state).classList.add('hidden');
+      const element = document.getElementById(state);
+      if (element) {
+        element.classList.add('hidden');
+      }
     });
   }
 
   updateConnectionStatus(status, text) {
     const statusElement = document.getElementById('connectionStatus');
+    if (!statusElement) return;
+    
     const dot = statusElement.querySelector('.status-dot');
     const span = statusElement.querySelector('span');
+    
+    if (!dot || !span) return;
     
     // Remove existing classes
     dot.classList.remove('warning', 'error');
@@ -234,19 +270,27 @@ class TrustHuntPopup {
     if (!this.orgData) return;
 
     // Update org details
-    document.getElementById('orgName').textContent = this.orgData.orgName;
-    document.getElementById('orgUrl').textContent = this.orgData.instanceUrl;
-    
+    const orgNameElement = document.getElementById('orgName');
+    const orgUrlElement = document.getElementById('orgUrl');
     const orgTypeElement = document.getElementById('orgType');
-    orgTypeElement.textContent = this.orgData.orgType;
-    orgTypeElement.className = `org-type ${this.orgData.orgType}`;
+    
+    if (orgNameElement) orgNameElement.textContent = this.orgData.orgName;
+    if (orgUrlElement) orgUrlElement.textContent = this.orgData.instanceUrl;
+    
+    if (orgTypeElement) {
+      orgTypeElement.textContent = this.orgData.orgType;
+      orgTypeElement.className = `org-type ${this.orgData.orgType}`;
+    }
 
     // Update security status
-    document.getElementById('riskScore').textContent = this.orgData.riskScore || '--';
-    document.getElementById('vulnerabilityCount').textContent = this.orgData.vulnerabilityCount || '--';
-    
+    const riskScoreElement = document.getElementById('riskScore');
+    const vulnerabilityCountElement = document.getElementById('vulnerabilityCount');
     const lastScanElement = document.getElementById('lastScan');
-    if (this.orgData.lastScan) {
+    
+    if (riskScoreElement) riskScoreElement.textContent = this.orgData.riskScore || '--';
+    if (vulnerabilityCountElement) vulnerabilityCountElement.textContent = this.orgData.vulnerabilityCount || '--';
+    
+    if (lastScanElement && this.orgData.lastScan) {
       const timeDiff = Date.now() - this.orgData.lastScan.getTime();
       const days = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((timeDiff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -258,16 +302,21 @@ class TrustHuntPopup {
       } else {
         lastScanElement.textContent = 'Recent';
       }
-    } else {
+    } else if (lastScanElement) {
       lastScanElement.textContent = 'Never';
     }
 
     // Update insights
     this.updateInsights();
+    
+    // Update vulnerability list if available
+    this.updateVulnerabilityList();
   }
 
   updateInsights() {
     const insightsList = document.getElementById('insightsList');
+    if (!insightsList) return;
+    
     const insights = [];
 
     if (this.orgData.securityData) {
@@ -321,32 +370,68 @@ class TrustHuntPopup {
       </div>
     `).join('');
   }
-
-  setupEventListeners() {
-    // Open web app button
-    document.getElementById('openWebApp').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'http://localhost:5173' });
+  
+  updateVulnerabilityList() {
+    const vulnerabilitiesList = document.getElementById('vulnerabilitiesList');
+    if (!vulnerabilitiesList || !this.orgData.vulnerabilities) return;
+    
+    if (this.orgData.vulnerabilities.length === 0) {
+      vulnerabilitiesList.innerHTML = `
+        <div class="p-4 bg-gray-50 rounded-lg text-center">
+          <p class="text-sm text-gray-600">No vulnerabilities found</p>
+        </div>
+      `;
+      return;
+    }
+    
+    // Sort by severity
+    const sortedVulns = [...this.orgData.vulnerabilities].sort((a, b) => {
+      const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+      return severityOrder[a.severity] - severityOrder[b.severity];
     });
-
-    // Start scan button
-    document.getElementById('startScanButton').addEventListener('click', () => {
-      this.startSecurityScan();
-    });
-
-    // View reports button
-    document.getElementById('viewReportsButton').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'http://localhost:5173' });
-    });
-
-    // Settings button
-    document.getElementById('settingsButton').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
-
-    // Help button
-    document.getElementById('helpButton').addEventListener('click', () => {
-      chrome.tabs.create({ url: 'https://trusthunt.com/help' });
-    });
+    
+    // Display top 5 vulnerabilities
+    vulnerabilitiesList.innerHTML = sortedVulns.slice(0, 5).map(vuln => {
+      const severityClass = 
+        vuln.severity === 'critical' ? 'bg-red-100 text-red-800' :
+        vuln.severity === 'high' ? 'bg-orange-100 text-orange-800' :
+        vuln.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+        'bg-green-100 text-green-800';
+      
+      return `
+        <div class="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors mb-2">
+          <div class="flex items-center justify-between mb-1">
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${severityClass}">
+              ${vuln.severity.toUpperCase()}
+            </span>
+            <span class="text-xs text-gray-500">CVSS ${vuln.cvssScore}</span>
+          </div>
+          <p class="text-sm font-medium text-gray-900">${vuln.title}</p>
+          <p class="text-xs text-gray-600 mt-1">${vuln.location}</p>
+        </div>
+      `;
+    }).join('');
+    
+    // Add "View All" if there are more
+    if (sortedVulns.length > 5) {
+      vulnerabilitiesList.innerHTML += `
+        <div class="text-center mt-2">
+          <button id="viewAllVulns" class="text-sm text-blue-600 hover:text-blue-700">
+            View All (${sortedVulns.length})
+          </button>
+        </div>
+      `;
+      
+      // Add event listener
+      setTimeout(() => {
+        const viewAllBtn = document.getElementById('viewAllVulns');
+        if (viewAllBtn) {
+          viewAllBtn.addEventListener('click', () => {
+            this.openSecurityReport();
+          });
+        }
+      }, 0);
+    }
   }
 
   async startSecurityScan() {
@@ -356,109 +441,109 @@ class TrustHuntPopup {
     this.showScanningState();
 
     try {
-      // Simulate security scan progress
-      await this.simulateSecurityScan();
+      // Update progress UI
+      const progressText = document.getElementById('scanProgress');
+      const progressFill = document.getElementById('progressFill');
+      const itemsScanned = document.getElementById('itemsScanned');
+      const issuesFound = document.getElementById('issuesFound');
       
-      // Update security data
-      await this.updateSecurityData();
+      if (progressText) progressText.textContent = 'Initializing scan...';
+      if (progressFill) progressFill.style.width = '10%';
+      if (itemsScanned) itemsScanned.textContent = '0';
+      if (issuesFound) issuesFound.textContent = '0';
+      
+      // Start the scan
+      const response = await chrome.runtime.sendMessage({
+        type: 'START_SCAN',
+        orgId: this.orgData.orgId,
+        options: { manual: true }
+      });
+      
+      if (!response.success) {
+        throw new Error('Failed to start scan');
+      }
+      
+      // Simulate scan progress
+      await this.simulateScanProgress();
+      
+      // Reload security data
+      await this.loadSecurityData();
       
       // Show results
       this.showOrgDetectedState();
       
     } catch (error) {
       console.error('Security scan failed:', error);
-      this.showOrgDetectedState();
+      this.showErrorState('Security scan failed: ' + error.message);
     } finally {
       this.scanInProgress = false;
     }
   }
-
-  async simulateSecurityScan() {
-    const progressElement = document.getElementById('progressFill');
+  
+  async simulateScanProgress() {
     const progressText = document.getElementById('scanProgress');
+    const progressFill = document.getElementById('progressFill');
     const itemsScanned = document.getElementById('itemsScanned');
     const issuesFound = document.getElementById('issuesFound');
-
+    
+    if (!progressText || !progressFill || !itemsScanned || !issuesFound) return;
+    
     const phases = [
-      { text: 'Initializing scan...', duration: 1000 },
-      { text: 'Analyzing Apex classes...', duration: 2000 },
-      { text: 'Checking permissions...', duration: 1500 },
-      { text: 'Scanning for vulnerabilities...', duration: 2500 },
-      { text: 'Generating report...', duration: 1000 }
+      { text: 'Analyzing Apex classes...', progress: 25, items: 50, issues: 2, duration: 1000 },
+      { text: 'Scanning Visualforce pages...', progress: 50, items: 75, issues: 4, duration: 1000 },
+      { text: 'Checking permissions...', progress: 75, items: 120, issues: 6, duration: 1000 },
+      { text: 'Finalizing results...', progress: 95, items: 150, issues: 8, duration: 1000 }
     ];
-
-    let totalProgress = 0;
-    let scannedItems = 0;
-    let foundIssues = 0;
-
-    for (let i = 0; i < phases.length; i++) {
-      const phase = phases[i];
+    
+    for (const phase of phases) {
       progressText.textContent = phase.text;
+      progressFill.style.width = `${phase.progress}%`;
+      itemsScanned.textContent = phase.items.toString();
+      issuesFound.textContent = phase.issues.toString();
       
-      const phaseProgress = (i + 1) / phases.length * 100;
-      
-      // Animate progress
-      const startProgress = totalProgress;
-      const endProgress = phaseProgress;
-      const startTime = Date.now();
-      
-      while (Date.now() - startTime < phase.duration) {
-        const elapsed = Date.now() - startTime;
-        const progress = startProgress + (endProgress - startProgress) * (elapsed / phase.duration);
-        
-        progressElement.style.width = `${Math.min(progress, 100)}%`;
-        
-        // Update counters
-        scannedItems = Math.floor(progress * 2.5);
-        foundIssues = Math.floor(Math.random() * (scannedItems / 10));
-        
-        itemsScanned.textContent = scannedItems;
-        issuesFound.textContent = foundIssues;
-        
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      
-      totalProgress = phaseProgress;
+      await new Promise(resolve => setTimeout(resolve, phase.duration));
     }
-
-    progressElement.style.width = '100%';
+    
     progressText.textContent = 'Scan completed!';
+    progressFill.style.width = '100%';
   }
 
-  async updateSecurityData() {
-    // Generate mock security data
-    const vulnerabilityCount = Math.floor(Math.random() * 15);
-    const riskScore = Math.max(20, 100 - (vulnerabilityCount * 5) - Math.floor(Math.random() * 20));
+  openSecurityReport() {
+    chrome.tabs.create({ url: 'http://localhost:5173/report' });
+  }
 
-    const securityData = {
-      lastScan: new Date().toISOString(),
-      riskScore: riskScore,
-      vulnerabilityCount: vulnerabilityCount,
-      scanResults: {
-        apexClasses: Math.floor(Math.random() * 50) + 10,
-        permissions: Math.floor(Math.random() * 20) + 5,
-        users: Math.floor(Math.random() * 100) + 20
-      }
-    };
+  setupEventListeners() {
+    // Open web app button
+    const openWebAppBtn = document.getElementById('openWebApp');
+    if (openWebAppBtn) {
+      openWebAppBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'http://localhost:5173' });
+      });
+    }
 
-    // Update org data
-    this.orgData.securityData = securityData;
-    this.orgData.lastScan = new Date(securityData.lastScan);
-    this.orgData.riskScore = securityData.riskScore;
-    this.orgData.vulnerabilityCount = securityData.vulnerabilityCount;
+    // Start scan button
+    const startScanButton = document.getElementById('startScanButton');
+    if (startScanButton) {
+      startScanButton.addEventListener('click', () => {
+        this.startSecurityScan();
+      });
+    }
 
-    // Save to storage
-    const storageKey = `trusthunt_${this.orgData.orgId}`;
-    await chrome.storage.local.set({
-      [storageKey]: securityData
-    });
+    // View reports button
+    const viewReportsButton = document.getElementById('viewReportsButton');
+    if (viewReportsButton) {
+      viewReportsButton.addEventListener('click', () => {
+        this.openSecurityReport();
+      });
+    }
 
-    // Notify background script
-    chrome.runtime.sendMessage({
-      type: 'SCAN_COMPLETED',
-      orgId: this.orgData.orgId,
-      data: securityData
-    });
+    // Retry button for error state
+    const retryButton = document.getElementById('retryButton');
+    if (retryButton) {
+      retryButton.addEventListener('click', () => {
+        this.init();
+      });
+    }
   }
 
   startPeriodicUpdates() {
