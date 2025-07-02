@@ -169,7 +169,14 @@ class TrustHuntPopup {
 
   async extractOrgInfo() {
     try {
-      // Inject script to extract org information from the page
+      // Try to get org info from content script
+      const response = await chrome.tabs.sendMessage(this.currentTab.id, { type: 'GET_ORG_INFO' });
+      
+      if (response && response.success && response.data) {
+        return response.data;
+      }
+      
+      // If content script doesn't respond, try injecting script
       const results = await chrome.scripting.executeScript({
         target: { tabId: this.currentTab.id },
         function: this.extractOrgInfoFromPage
@@ -187,6 +194,25 @@ class TrustHuntPopup {
       }
     } catch (error) {
       this.logError('Error extracting org info', error);
+      
+      // Try a fallback approach using just the URL
+      try {
+        const url = new URL(this.currentTab.url);
+        const hostname = url.hostname;
+        
+        // Check if this is definitely a Salesforce URL
+        if (this.isSalesforceUrl(url.href)) {
+          return {
+            orgName: hostname.split('.')[0],
+            orgId: hostname.replace(/[^a-zA-Z0-9]/g, '_'),
+            instanceUrl: `${url.protocol}//${hostname}`,
+            orgType: this.determineOrgType(hostname),
+            detectedAt: new Date().toISOString()
+          };
+        }
+      } catch (fallbackError) {
+        this.logError('Fallback org detection failed', fallbackError);
+      }
     }
     
     return null;
@@ -232,6 +258,25 @@ class TrustHuntPopup {
       let sessionId = null;
       if (window.sforce && window.sforce.connection && window.sforce.connection.sessionId) {
         sessionId = window.sforce.connection.sessionId;
+      }
+
+      // Check for Lightning or Visualforce
+      const isLightning = window.location.hostname.includes('lightning.force.com') || 
+                          window.location.hostname.includes('develop.lightning.force.com') ||
+                          document.querySelector('[data-aura-class]') !== null;
+      
+      const isVisualforce = window.location.pathname.includes('/apex/') || 
+                           document.querySelector('.vfPage') !== null;
+      
+      // If we have any Salesforce indicators, consider it a Salesforce org
+      const isSalesforce = isLightning || 
+                          isVisualforce || 
+                          window.location.hostname.includes('salesforce.com') || 
+                          window.location.hostname.includes('force.com') ||
+                          document.querySelector('.slds-') !== null;
+
+      if (!isSalesforce) {
+        return null;
       }
 
       return {
@@ -495,7 +540,7 @@ class TrustHuntPopup {
       const viewReportsButton = document.getElementById('viewReportsButton');
       if (viewReportsButton) {
         viewReportsButton.addEventListener('click', () => {
-          chrome.tabs.create({ url: 'http://localhost:5173' });
+          chrome.tabs.create({ url: 'http://localhost:5173/report' });
         });
       }
 

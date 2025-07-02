@@ -15,7 +15,8 @@ class TrustHuntContent {
     
     await this.detectOrgInfo();
     this.setupMessageListener();
-    this.injectSecurityOverlay();
+    
+    // Don't inject overlay - keep UI in the extension popup only
     this.startRealTimeMonitoring();
   }
 
@@ -147,12 +148,12 @@ class TrustHuntContent {
         break;
 
       case 'SHOW_SECURITY_ALERT':
-        this.showSecurityAlert(message.alert);
+        // Don't show alerts on page - keep UI in extension popup
         sendResponse({ success: true });
         break;
 
       case 'HIGHLIGHT_VULNERABILITY':
-        this.highlightVulnerability(message.vulnerability);
+        // Don't highlight on page - keep UI in extension popup
         sendResponse({ success: true });
         break;
 
@@ -161,206 +162,11 @@ class TrustHuntContent {
     }
   }
 
-  injectSecurityOverlay() {
-    if (this.securityOverlay) return;
-
-    // Create floating security status indicator
-    this.securityOverlay = document.createElement('div');
-    this.securityOverlay.id = 'trusthunt-security-overlay';
-    this.securityOverlay.innerHTML = `
-      <div class="trusthunt-overlay-content">
-        <div class="trusthunt-logo">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </div>
-        <div class="trusthunt-status">
-          <div class="trusthunt-status-dot"></div>
-          <span class="trusthunt-status-text">Monitoring</span>
-        </div>
-        <div class="trusthunt-actions">
-          <button class="trusthunt-scan-btn" title="Start Security Scan">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polygon points="5,3 19,12 5,21 5,3"/>
-            </svg>
-          </button>
-          <button class="trusthunt-report-btn" title="View Security Report">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-              <polyline points="14,2 14,8 20,8"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-    `;
-
-    // Add event listeners
-    this.securityOverlay.querySelector('.trusthunt-scan-btn').addEventListener('click', () => {
-      this.startSecurityScan();
-    });
-
-    this.securityOverlay.querySelector('.trusthunt-report-btn').addEventListener('click', () => {
-      this.openSecurityReport();
-    });
-
-    document.body.appendChild(this.securityOverlay);
-    
-    // Load initial security status
-    this.updateSecurityStatus();
-  }
-
-  async updateSecurityStatus() {
-    if (!this.orgInfo || !this.securityOverlay) return;
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_SECURITY_DATA',
-        orgId: this.orgInfo.orgId
-      });
-
-      if (response.success && response.data) {
-        const data = response.data;
-        const statusDot = this.securityOverlay.querySelector('.trusthunt-status-dot');
-        const statusText = this.securityOverlay.querySelector('.trusthunt-status-text');
-
-        if (data.vulnerabilityCount > 5) {
-          statusDot.className = 'trusthunt-status-dot critical';
-          statusText.textContent = `${data.vulnerabilityCount} Issues`;
-        } else if (data.vulnerabilityCount > 0) {
-          statusDot.className = 'trusthunt-status-dot warning';
-          statusText.textContent = `${data.vulnerabilityCount} Issues`;
-        } else {
-          statusDot.className = 'trusthunt-status-dot secure';
-          statusText.textContent = 'Secure';
-        }
-      }
-    } catch (error) {
-      console.error('Error updating security status:', error);
-    }
-  }
-
-  async startSecurityScan() {
-    if (!this.orgInfo) return;
-
-    try {
-      const statusText = this.securityOverlay.querySelector('.trusthunt-status-text');
-      const originalText = statusText.textContent;
-      
-      statusText.textContent = 'Scanning...';
-      
-      const response = await chrome.runtime.sendMessage({
-        type: 'START_SCAN',
-        orgId: this.orgInfo.orgId,
-        options: { manual: true }
-      });
-
-      if (response.success) {
-        this.showNotification('Security scan started', 'success');
-        
-        // Simulate scan progress
-        setTimeout(() => {
-          statusText.textContent = originalText;
-          this.updateSecurityStatus();
-        }, 5000);
-      }
-    } catch (error) {
-      console.error('Error starting scan:', error);
-      this.showNotification('Failed to start scan', 'error');
-    }
-  }
-
-  openSecurityReport() {
-    // Open TrustHunt web app with report view
-    window.open('http://localhost:5173/report', '_blank');
-  }
-
   handleSecurityDataUpdate(orgId, data) {
     if (this.orgInfo && this.orgInfo.orgId === orgId) {
-      this.updateSecurityStatus();
-      
-      // Show notification for new vulnerabilities
-      if (data.vulnerabilityCount > 0) {
-        this.showNotification(
-          `Security scan complete: ${data.vulnerabilityCount} issues found`,
-          'warning'
-        );
-      }
+      // Just update internal data, don't show UI on page
+      console.log(`Security data updated for org ${orgId}`);
     }
-  }
-
-  showSecurityAlert(alert) {
-    // Create and show security alert overlay
-    const alertElement = document.createElement('div');
-    alertElement.className = 'trusthunt-security-alert';
-    alertElement.innerHTML = `
-      <div class="trusthunt-alert-content">
-        <div class="trusthunt-alert-icon ${alert.severity}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-          </svg>
-        </div>
-        <div class="trusthunt-alert-text">
-          <div class="trusthunt-alert-title">${alert.title}</div>
-          <div class="trusthunt-alert-message">${alert.message}</div>
-        </div>
-        <button class="trusthunt-alert-close">×</button>
-      </div>
-    `;
-
-    alertElement.querySelector('.trusthunt-alert-close').addEventListener('click', () => {
-      alertElement.remove();
-    });
-
-    document.body.appendChild(alertElement);
-
-    // Auto-remove after 10 seconds
-    setTimeout(() => {
-      if (alertElement.parentNode) {
-        alertElement.remove();
-      }
-    }, 10000);
-  }
-
-  highlightVulnerability(vulnerability) {
-    // Highlight specific elements on the page that have vulnerabilities
-    const selector = vulnerability.selector;
-    if (selector) {
-      const elements = document.querySelectorAll(selector);
-      elements.forEach(element => {
-        element.classList.add('trusthunt-vulnerability-highlight');
-        
-        // Add tooltip
-        const tooltip = document.createElement('div');
-        tooltip.className = 'trusthunt-vulnerability-tooltip';
-        tooltip.textContent = vulnerability.description;
-        element.appendChild(tooltip);
-      });
-    }
-  }
-
-  showNotification(message, type = 'info') {
-    const notification = document.createElement('div');
-    notification.className = `trusthunt-notification ${type}`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    // Animate in
-    setTimeout(() => {
-      notification.classList.add('show');
-    }, 100);
-    
-    // Remove after 3 seconds
-    setTimeout(() => {
-      notification.classList.remove('show');
-      setTimeout(() => {
-        if (notification.parentNode) {
-          notification.remove();
-        }
-      }, 300);
-    }, 3000);
   }
 
   startRealTimeMonitoring() {

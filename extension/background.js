@@ -111,6 +111,11 @@ class TrustHuntBackground {
           sendResponse({ success: true });
           break;
 
+        case 'SECURITY_ISSUE_DETECTED':
+          await this.handleSecurityIssue(message.issueType, message.orgId, message.details);
+          sendResponse({ success: true });
+          break;
+
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
       }
@@ -551,13 +556,68 @@ class TrustHuntBackground {
   }
 
   async getOrgInfo(tab) {
-    // This would be implemented to get org info from a tab
-    return null;
+    try {
+      // Try to get org info from content script
+      const response = await chrome.tabs.sendMessage(tab.id, { type: 'GET_ORG_INFO' });
+      return response?.data || null;
+    } catch (error) {
+      console.error('Error getting org info:', error);
+      return null;
+    }
   }
 
   async handleScanCompleted(orgId, data) {
-    // This would be implemented to handle scan completion
     console.log(`Scan completed for org ${orgId}`);
+    
+    // Update badge for all tabs with this org
+    chrome.tabs.query({}, (tabs) => {
+      tabs.forEach(tab => {
+        if (tab.url && this.isSalesforceUrl(tab.url)) {
+          const tabOrgId = this.extractOrgIdFromUrl(tab.url);
+          if (tabOrgId === orgId) {
+            this.updateBadgeForTab(tab.id, orgId);
+          }
+        }
+      });
+    });
+    
+    // Notify content scripts
+    this.notifySecurityDataUpdate(orgId, data);
+  }
+
+  async handleSecurityIssue(issueType, orgId, details) {
+    console.log(`Security issue detected: ${issueType} in org ${orgId}`);
+    
+    // In a real implementation, this would:
+    // 1. Log the issue to a database
+    // 2. Update the security score
+    // 3. Potentially trigger alerts
+    
+    // For now, we'll just update the badge
+    if (orgId) {
+      const securityData = await this.getSecurityData(orgId);
+      if (securityData) {
+        securityData.vulnerabilityCount = (securityData.vulnerabilityCount || 0) + 1;
+        
+        // Update storage
+        const storageKey = `trusthunt_${orgId}`;
+        await chrome.storage.local.set({
+          [storageKey]: securityData
+        });
+        
+        // Update badges
+        chrome.tabs.query({}, (tabs) => {
+          tabs.forEach(tab => {
+            if (tab.url && this.isSalesforceUrl(tab.url)) {
+              const tabOrgId = this.extractOrgIdFromUrl(tab.url);
+              if (tabOrgId === orgId) {
+                this.updateBadgeForTab(tab.id, orgId);
+              }
+            }
+          });
+        });
+      }
+    }
   }
 }
 

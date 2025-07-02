@@ -289,10 +289,6 @@
         if (elements.length === 0) return;
         
         elements.forEach(element => {
-          // Add visual indicator
-          element.style.outline = '2px solid #ef4444';
-          element.style.outlineOffset = '2px';
-          
           // Add data attribute for tracking
           element.setAttribute('data-trusthunt-scanned', 'true');
           
