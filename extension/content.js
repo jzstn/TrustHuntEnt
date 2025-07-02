@@ -21,8 +21,12 @@
       
       await this.detectOrgInfo();
       this.setupMessageListener();
-      this.injectSecurityOverlay();
-      this.startRealTimeMonitoring();
+      
+      // Only inject overlay if we're in a Salesforce org
+      if (this.orgInfo) {
+        this.injectSecurityOverlay();
+        this.startRealTimeMonitoring();
+      }
     }
 
     async detectOrgInfo() {
@@ -149,7 +153,7 @@
     }
 
     injectSecurityOverlay() {
-      if (this.securityOverlay) return;
+      if (this.securityOverlay || !document.body) return;
 
       // Create floating security status indicator
       this.securityOverlay = document.createElement('div');
@@ -258,7 +262,7 @@
 
     openSecurityReport() {
       // Open TrustHunt web app
-      window.open('http://localhost:5173', '_blank');
+      window.open('http://localhost:5173/report', '_blank');
     }
 
     handleSecurityDataUpdate(orgId, data) {

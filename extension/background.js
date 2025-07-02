@@ -147,9 +147,13 @@ class TrustHuntBackground {
   }
 
   async handleTabActivation(activeInfo) {
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (tab.url && this.isSalesforceUrl(tab.url)) {
-      await this.updateBadgeForTab(activeInfo.tabId, tab.url);
+    try {
+      const tab = await chrome.tabs.get(activeInfo.tabId);
+      if (tab.url && this.isSalesforceUrl(tab.url)) {
+        await this.updateBadgeForTab(activeInfo.tabId, tab.url);
+      }
+    } catch (error) {
+      console.error('Error handling tab activation:', error);
     }
   }
 
@@ -166,6 +170,8 @@ class TrustHuntBackground {
   }
 
   isSalesforceUrl(url) {
+    if (!url) return false;
+    
     const salesforcePatterns = [
       /https:\/\/.*\.salesforce\.com/,
       /https:\/\/.*\.force\.com/,
@@ -410,6 +416,30 @@ class TrustHuntBackground {
             return u;
           }
         }`
+      },
+      {
+        name: "LeadController",
+        body: `public with sharing class LeadController {
+          public void convertLead(String leadId) {
+            Lead l = [SELECT Id, Status FROM Lead WHERE Id = :leadId];
+            Database.LeadConvert lc = new Database.LeadConvert();
+            lc.setLeadId(leadId);
+            Database.convertLead(lc);
+            System.debug('Lead converted: ' + leadId);
+          }
+        }`
+      },
+      {
+        name: "AccountDetailPage",
+        body: `<apex:page controller="AccountController">
+          <apex:outputText value="{!$Request.name}" escape="false"/>
+          <apex:outputPanel>
+            <script>
+              var accountId = '{!$CurrentPage.parameters.id}';
+              console.log(accountId);
+            </script>
+          </apex:outputPanel>
+        </apex:page>`
       }
     ];
     
@@ -417,7 +447,7 @@ class TrustHuntBackground {
     const vulnerabilities = [];
     
     mockCodeSamples.forEach(sample => {
-      const vulns = this.analyzeCode(sample.body, `${sample.name}.cls`, orgId);
+      const vulns = this.analyzeCode(sample.body, `${sample.name}.${sample.name.includes('Page') ? 'page' : 'cls'}`, orgId);
       vulnerabilities.push(...vulns);
     });
     
@@ -733,6 +763,34 @@ class TrustHuntBackground {
         ],
         businessImpact: 'Sensitive information may be exposed in debug logs',
         remediation: 'Remove debug statements with sensitive data or mask the sensitive information'
+      },
+      {
+        id: 'XSS-001',
+        name: 'Reflected XSS in Visualforce',
+        description: 'User input from page parameters used without proper encoding',
+        severity: 'medium',
+        type: 'xss',
+        cvssScore: 6.1,
+        detectionPatterns: [
+          /<apex:outputText\s+value=["']\{!.*?\}["']\s+escape=["']false["']/,
+          /<apex:outputText\s+escape=["']false["']\s+value=["']\{!.*?\}["']/,
+          /\{!.*?Request\.Parameter.*?\}/
+        ],
+        businessImpact: 'Potential cross-site scripting attacks against users',
+        remediation: 'Use HTMLENCODE(), JSENCODE(), or set escape="true" on outputText components'
+      },
+      {
+        id: 'CRUD-FLS-002',
+        name: 'Missing CRUD Checks',
+        description: 'DML operations performed without checking CRUD permissions',
+        severity: 'medium',
+        type: 'crud_fls_violation',
+        cvssScore: 5.4,
+        detectionPatterns: [
+          /(?:insert|update|delete|upsert)\s+\w+(?!.*isCreateable\(\)|.*isUpdateable\(\)|.*isDeletable\(\))/
+        ],
+        businessImpact: 'Users may perform operations they lack permission for',
+        remediation: 'Add CRUD permission checks using Schema.sObjectType.isCreateable(), isUpdateable(), or isDeletable() before DML operations'
       }
     ];
   }
