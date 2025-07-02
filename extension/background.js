@@ -47,15 +47,21 @@ class TrustHuntBackground {
       this.initializeDefaultSettings();
     } else if (details.reason === 'update') {
       // Extension update
-      this.handleUpdate(details.previousVersion);
+      this.handleUpdateInstallation(details.previousVersion);
     }
+  }
+
+  // Added this missing method
+  handleUpdateInstallation(previousVersion) {
+    console.log(`Extension updated from version ${previousVersion}`);
+    // You can add version-specific update logic here
   }
 
   async showWelcomeNotification() {
     try {
       await chrome.notifications.create('welcome', {
         type: 'basic',
-        iconUrl: 'icons/icon48.png',
+        iconUrl: 'icons/icon32.png',
         title: 'TrustHunt Enterprise Installed',
         message: 'Navigate to any Salesforce org to start security analysis!'
       });
@@ -400,7 +406,7 @@ class TrustHuntBackground {
 
       await chrome.notifications.create(`scan_${orgId}`, {
         type: 'basic',
-        iconUrl: 'icons/icon48.png',
+        iconUrl: 'icons/icon32.png',
         title,
         message
       });
@@ -416,7 +422,7 @@ class TrustHuntBackground {
     try {
       await chrome.notifications.create(`scan_error_${orgId}`, {
         type: 'basic',
-        iconUrl: 'icons/icon48.png',
+        iconUrl: 'icons/icon32.png',
         title: 'Security Scan Failed',
         message: `Scan failed for org ${orgId}: ${error.message}`
       });
