@@ -524,7 +524,8 @@ class TrustHuntPopup {
       const openWebAppButton = document.getElementById('openWebApp');
       if (openWebAppButton) {
         openWebAppButton.addEventListener('click', () => {
-          chrome.tabs.create({ url: 'http://localhost:5173' });
+          // Use the deployed URL instead of localhost
+          chrome.tabs.create({ url: 'https://subtle-otter-5bb883.netlify.app' });
         });
       }
 
@@ -540,7 +541,8 @@ class TrustHuntPopup {
       const viewReportsButton = document.getElementById('viewReportsButton');
       if (viewReportsButton) {
         viewReportsButton.addEventListener('click', () => {
-          chrome.tabs.create({ url: 'http://localhost:5173/report' });
+          // Use the deployed URL instead of localhost
+          chrome.tabs.create({ url: 'https://subtle-otter-5bb883.netlify.app/report' });
         });
       }
 

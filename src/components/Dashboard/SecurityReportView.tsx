@@ -30,6 +30,16 @@ export const SecurityReportView: React.FC = () => {
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
 
+  // Generate mock vulnerabilities if none exist
+  useEffect(() => {
+    if (vulnerabilities.length === 0) {
+      const mockVulnerabilities = generateMockVulnerabilities();
+      mockVulnerabilities.forEach(vuln => {
+        useSecurityStore.getState().addVulnerability(vuln);
+      });
+    }
+  }, [vulnerabilities.length]);
+
   // Group vulnerabilities by class/component
   const vulnerabilitiesByClass = React.useMemo(() => {
     const grouped = new Map<string, typeof vulnerabilities>();
@@ -167,23 +177,145 @@ export const SecurityReportView: React.FC = () => {
     navigate('/');
   };
 
-  if (vulnerabilities.length === 0) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center max-w-4xl mx-auto mt-8">
-        <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No Vulnerabilities Found</h3>
-        <p className="text-gray-600 mb-4">
-          Run a security scan to discover vulnerabilities in your Salesforce organization.
-        </p>
-        <button
-          onClick={handleBack}
-          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Dashboard
-        </button>
-      </div>
-    );
+  // Generate mock vulnerabilities for demo
+  function generateMockVulnerabilities() {
+    const mockVulnerabilities = [
+      {
+        id: 'vuln-1',
+        orgId: 'demo-org',
+        type: 'soql_injection',
+        severity: 'critical',
+        title: 'SOQL Injection in CustomController',
+        description: 'Dynamic SOQL construction without proper sanitization detected',
+        location: 'CustomController.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 9.1,
+        businessImpact: 'Potential unauthorized data access and database compromise',
+        remediation: 'Use parameterized queries and input validation',
+        evidence: [{
+          type: 'code_snippet',
+          content: "String query = 'SELECT Id, Name FROM Account WHERE Name = \\'' + userInput + '\\'';",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-2',
+        orgId: 'demo-org',
+        type: 'crud_fls_violation',
+        severity: 'high',
+        title: 'Missing Sharing Declaration',
+        description: 'Apex class without sharing declaration allows unauthorized data access',
+        location: 'DataProcessor.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 7.5,
+        businessImpact: 'Users may access records they should not have permission to view',
+        remediation: 'Add "with sharing" to class declaration',
+        evidence: [{
+          type: 'code_snippet',
+          content: "public class DataProcessor {\n  // Missing 'with sharing' declaration\n  public static void processData() {\n    // Data processing logic\n  }\n}",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-3',
+        orgId: 'demo-org',
+        type: 'data_exposure',
+        severity: 'medium',
+        title: 'Hardcoded Credentials in Apex',
+        description: 'Sensitive credentials found hardcoded in source code',
+        location: 'IntegrationService.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 6.8,
+        businessImpact: 'Credentials may be exposed to unauthorized users',
+        remediation: 'Use Custom Settings or Named Credentials',
+        evidence: [{
+          type: 'code_snippet',
+          content: "private static final String API_KEY = 'a1b2c3d4e5f6g7h8i9j0';\nprivate static final String API_SECRET = 'secret_key_value_should_not_be_here';",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-4',
+        orgId: 'demo-org',
+        type: 'permission_escalation',
+        severity: 'high',
+        title: 'Excessive Profile Permissions',
+        description: 'Custom profile has unnecessary administrative permissions',
+        location: 'Profile: Sales Manager',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 8.2,
+        businessImpact: 'Users may have excessive privileges leading to potential data breaches',
+        remediation: 'Review and restrict profile permissions following least privilege principle',
+        evidence: [{
+          type: 'code_snippet',
+          content: "Profile permissions include:\n- Modify All Data\n- View All Data\n- Manage Users\n- Assign Permission Sets",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-5',
+        orgId: 'demo-org',
+        type: 'xss',
+        severity: 'medium',
+        title: 'Reflected XSS in Visualforce Page',
+        description: 'User input is reflected without proper encoding',
+        location: 'AccountDetails.page',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 6.1,
+        businessImpact: 'Potential cross-site scripting attacks against users',
+        remediation: 'Use HTMLENCODE() or JSENCODE() functions',
+        evidence: [{
+          type: 'code_snippet',
+          content: "<apex:outputText value=\"{!$Request.param}\" escape=\"false\"/>",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-6',
+        orgId: 'demo-org',
+        type: 'soql_injection',
+        severity: 'critical',
+        title: 'SOQL Injection in REST API',
+        description: 'User-controlled input used directly in SOQL query',
+        location: 'AccountRESTService.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 9.3,
+        businessImpact: 'Complete data exposure and potential data manipulation',
+        remediation: 'Use parameterized queries and input validation',
+        evidence: [{
+          type: 'code_snippet',
+          content: "@RestResource(urlMapping='/accounts/*')\nglobal class AccountRESTService {\n  @HttpGet\n  global static List<Account> getAccounts() {\n    String filter = RestContext.request.params.get('filter');\n    return Database.query('SELECT Id, Name FROM Account WHERE ' + filter);\n  }\n}",
+          timestamp: new Date()
+        }]
+      },
+      {
+        id: 'vuln-7',
+        orgId: 'demo-org',
+        type: 'data_exposure',
+        severity: 'low',
+        title: 'Debug Logs Containing PII',
+        description: 'Personal identifiable information logged in debug statements',
+        location: 'UserService.cls',
+        discoveredAt: new Date(),
+        status: 'open',
+        cvssScore: 3.5,
+        businessImpact: 'PII may be exposed in logs accessible to administrators',
+        remediation: 'Remove or mask sensitive data in debug logs',
+        evidence: [{
+          type: 'code_snippet',
+          content: "System.debug('User email: ' + user.Email);\nSystem.debug('SSN: ' + contact.SSN__c);",
+          timestamp: new Date()
+        }]
+      }
+    ];
+    
+    return mockVulnerabilities;
   }
 
   return (
