@@ -3,6 +3,7 @@ class TrustHuntBackground {
     this.connectedOrgs = new Map();
     this.scanQueue = [];
     this.isProcessing = false;
+    this.securityRules = this.initializeSecurityRules();
     this.init();
   }
 
@@ -354,12 +355,8 @@ class TrustHuntBackground {
     try {
       console.log(`Executing security scan for org: ${scan.orgId}`);
       
-      // Import the SecurityRuleEngine dynamically
-      const { SecurityRuleEngine } = await import('../services/security/SecurityRuleEngine.js');
-      const ruleEngine = SecurityRuleEngine.getInstance();
-      
-      // Simulate scan execution with the rule engine
-      const scanResult = await this.performSecurityScan(scan.orgId, ruleEngine);
+      // Perform security scan using the rule engine
+      const scanResult = await this.performSecurityScan(scan.orgId);
       
       // Save results
       await this.saveScanResults(scan.orgId, scanResult);
@@ -373,8 +370,8 @@ class TrustHuntBackground {
     }
   }
 
-  async performSecurityScan(orgId, ruleEngine) {
-    // Simulate security scan with realistic data
+  async performSecurityScan(orgId) {
+    // Generate mock code samples for analysis
     const mockCodeSamples = [
       {
         name: "AccountController",
@@ -416,11 +413,11 @@ class TrustHuntBackground {
       }
     ];
     
-    // Analyze code samples using the rule engine
+    // Analyze code samples using the security rules
     const vulnerabilities = [];
     
     mockCodeSamples.forEach(sample => {
-      const vulns = ruleEngine.analyzeCode(sample.body, `${sample.name}.cls`, orgId);
+      const vulns = this.analyzeCode(sample.body, `${sample.name}.cls`, orgId);
       vulnerabilities.push(...vulns);
     });
     
@@ -428,8 +425,8 @@ class TrustHuntBackground {
     const riskScore = Math.max(20, 100 - (vulnerabilityCount * 3) - Math.floor(Math.random() * 30));
     
     return {
-      orgId,
       scanId: `scan_${Date.now()}`,
+      orgId,
       startedAt: new Date().toISOString(),
       completedAt: new Date(Date.now() + 30000).toISOString(), // 30 seconds later
       riskScore,
@@ -673,6 +670,113 @@ class TrustHuntBackground {
         });
       }
     }
+  }
+
+  // Security rule engine methods
+  initializeSecurityRules() {
+    return [
+      {
+        id: 'SOQL-INJ-001',
+        name: 'SOQL Injection - String Concatenation',
+        description: 'Dynamic SOQL query constructed with string concatenation',
+        severity: 'critical',
+        type: 'soql_injection',
+        cvssScore: 9.1,
+        detectionPatterns: [
+          /String\s+\w+\s*=\s*['"]SELECT\s+.*?\+\s*\w+/,
+          /Database\.query\s*\(\s*['"].*?\+\s*\w+/,
+          /\[\s*SELECT\s+.*?\+\s*\w+/,
+          /WHERE\s+\w+\s*=\s*['"]?\s*\+\s*\w+/
+        ],
+        businessImpact: 'Attackers could access unauthorized data, potentially exposing sensitive information',
+        remediation: 'Use parameterized queries with proper binding or apply String.escapeSingleQuotes() to user input'
+      },
+      {
+        id: 'CRUD-FLS-001',
+        name: 'Missing Sharing Declaration',
+        description: 'Apex class does not specify sharing model',
+        severity: 'high',
+        type: 'crud_fls_violation',
+        cvssScore: 7.5,
+        detectionPatterns: [
+          /^(?!.*with\s+sharing|inherited\s+sharing|without\s+sharing).*\bclass\s+\w+/m
+        ],
+        businessImpact: 'Users may access records they should not have permission to view or modify',
+        remediation: 'Add "with sharing", "inherited sharing", or explicitly "without sharing" to class declaration'
+      },
+      {
+        id: 'DATA-EXP-001',
+        name: 'Hardcoded Credentials',
+        description: 'Sensitive credentials found hardcoded in source code',
+        severity: 'high',
+        type: 'data_exposure',
+        cvssScore: 7.8,
+        detectionPatterns: [
+          /password\s*=\s*['"][^'"]{6,}['"]/,
+          /apikey\s*=\s*['"][^'"]{10,}['"]/,
+          /secret\s*=\s*['"][^'"]{10,}['"]/,
+          /token\s*=\s*['"][^'"]{20,}['"]/,
+          /key\s*=\s*['"][^'"]{15,}['"]/
+        ],
+        businessImpact: 'Credentials may be exposed to unauthorized users with code access',
+        remediation: 'Use Custom Settings, Custom Metadata Types, or Named Credentials to store sensitive information'
+      },
+      {
+        id: 'DEBUG-001',
+        name: 'Debug Logs with Sensitive Data',
+        description: 'Debug statements containing potentially sensitive information',
+        severity: 'low',
+        type: 'data_exposure',
+        cvssScore: 3.5,
+        detectionPatterns: [
+          /System\.debug\s*\(\s*.*?(?:password|email|phone|ssn|credit|token|key|secret)/
+        ],
+        businessImpact: 'Sensitive information may be exposed in debug logs',
+        remediation: 'Remove debug statements with sensitive data or mask the sensitive information'
+      }
+    ];
+  }
+
+  analyzeCode(code, fileName, orgId) {
+    const vulnerabilities = [];
+    
+    this.securityRules.forEach(rule => {
+      rule.detectionPatterns.forEach(pattern => {
+        let matches;
+        try {
+          matches = code.match(pattern);
+        } catch (e) {
+          console.error(`Error with pattern in rule ${rule.id}:`, e);
+          return;
+        }
+        
+        if (matches) {
+          matches.forEach((match, index) => {
+            vulnerabilities.push({
+              id: `${rule.id}-${fileName.replace(/\W/g, '')}-${index}`,
+              orgId,
+              type: rule.type,
+              severity: rule.severity,
+              title: `${rule.name} in ${fileName}`,
+              description: rule.description,
+              location: fileName,
+              discoveredAt: new Date(),
+              status: 'open',
+              cvssScore: rule.cvssScore,
+              businessImpact: rule.businessImpact,
+              remediation: rule.remediation,
+              evidence: [{
+                type: 'code_snippet',
+                content: match.substring(0, 200) + (match.length > 200 ? '...' : ''),
+                timestamp: new Date()
+              }]
+            });
+          });
+        }
+      });
+    });
+    
+    return vulnerabilities;
   }
 }
 
