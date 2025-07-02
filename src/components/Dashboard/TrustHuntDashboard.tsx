@@ -42,7 +42,8 @@ import {
   WifiOff,
   HelpCircle,
   Loader,
-  Info
+  Info,
+  Activity
 } from 'lucide-react';
 import { format } from 'date-fns';
 
