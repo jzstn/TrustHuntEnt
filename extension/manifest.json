@@ -13,7 +13,8 @@
     "https://*.salesforce.com/*",
     "https://*.force.com/*",
     "https://*.my.salesforce.com/*",
-    "https://*.lightning.force.com/*"
+    "https://*.lightning.force.com/*",
+    "https://*.develop.lightning.force.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -24,7 +25,8 @@
         "https://*.salesforce.com/*",
         "https://*.force.com/*",
         "https://*.my.salesforce.com/*",
-        "https://*.lightning.force.com/*"
+        "https://*.lightning.force.com/*",
+        "https://*.develop.lightning.force.com/*"
       ],
       "js": ["content.js"],
       "css": ["content.css"],
@@ -54,7 +56,8 @@
         "https://*.salesforce.com/*",
         "https://*.force.com/*",
         "https://*.my.salesforce.com/*",
-        "https://*.lightning.force.com/*"
+        "https://*.lightning.force.com/*",
+        "https://*.develop.lightning.force.com/*"
       ]
     }
   ]

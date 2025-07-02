@@ -110,6 +110,12 @@ class TrustHuntBackground {
           await this.updateBadge(message.tabId, message.count);
           sendResponse({ success: true });
           break;
+          
+        case 'ORG_DETECTED':
+          console.log('Salesforce org detected:', message.orgInfo);
+          await this.handleOrgDetected(message.orgInfo, sender.tab.id);
+          sendResponse({ success: true });
+          break;
 
         default:
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -117,6 +123,26 @@ class TrustHuntBackground {
     } catch (error) {
       console.error('Error handling message:', error);
       sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  async handleOrgDetected(orgInfo, tabId) {
+    console.log(`Salesforce org detected in tab ${tabId}:`, orgInfo);
+    
+    // Store org info
+    this.connectedOrgs.set(orgInfo.orgId, {
+      ...orgInfo,
+      tabId,
+      detectedAt: new Date()
+    });
+    
+    // Update badge
+    await this.updateBadgeForOrg(tabId, orgInfo.orgId);
+    
+    // Check for auto-scan
+    const settings = await this.getSettings();
+    if (settings.autoScan) {
+      await this.checkAutoScan(orgInfo.orgId, tabId);
     }
   }
 
@@ -130,9 +156,6 @@ class TrustHuntBackground {
         
         // Update badge
         await this.updateBadgeForTab(tabId, tab.url);
-        
-        // Check for auto-scan
-        await this.checkAutoScan(tabId, tab.url);
       } else {
         // Clear badge for non-Salesforce tabs
         await this.clearBadge(tabId);
@@ -164,7 +187,8 @@ class TrustHuntBackground {
       /https:\/\/.*\.salesforce\.com/,
       /https:\/\/.*\.force\.com/,
       /https:\/\/.*\.my\.salesforce\.com/,
-      /https:\/\/.*\.lightning\.force\.com/
+      /https:\/\/.*\.lightning\.force\.com/,
+      /https:\/\/.*\.develop\.lightning\.force\.com/
     ];
     
     return salesforcePatterns.some(pattern => pattern.test(url));
@@ -216,6 +240,37 @@ class TrustHuntBackground {
     }
   }
 
+  async updateBadgeForOrg(tabId, orgId) {
+    try {
+      const securityData = await this.getSecurityData(orgId);
+      const vulnerabilityCount = securityData?.vulnerabilityCount || 0;
+      
+      if (vulnerabilityCount > 0) {
+        await chrome.action.setBadgeText({
+          text: vulnerabilityCount.toString(),
+          tabId: tabId
+        });
+        
+        await chrome.action.setBadgeBackgroundColor({
+          color: vulnerabilityCount > 5 ? '#ef4444' : '#f59e0b',
+          tabId: tabId
+        });
+      } else {
+        await chrome.action.setBadgeText({
+          text: '✓',
+          tabId: tabId
+        });
+        
+        await chrome.action.setBadgeBackgroundColor({
+          color: '#10b981',
+          tabId: tabId
+        });
+      }
+    } catch (error) {
+      console.error('Error updating badge for org:', error);
+    }
+  }
+
   async clearBadge(tabId) {
     try {
       await chrome.action.setBadgeText({
@@ -239,6 +294,12 @@ class TrustHuntBackground {
         return match[1];
       }
       
+      // For lightning.force.com or develop.lightning.force.com URLs
+      const lightningMatch = hostname.match(/^([^.]+)\.(?:develop\.)?lightning\.force\.com$/);
+      if (lightningMatch) {
+        return lightningMatch[1];
+      }
+      
       // For other patterns, use the full hostname as identifier
       return hostname.replace(/[^a-zA-Z0-9]/g, '_');
     } catch (error) {
@@ -246,13 +307,10 @@ class TrustHuntBackground {
     }
   }
 
-  async checkAutoScan(tabId, url) {
+  async checkAutoScan(orgId, tabId) {
     try {
       const settings = await this.getSettings();
       if (!settings.autoScan) return;
-
-      const orgId = this.extractOrgIdFromUrl(url);
-      if (!orgId) return;
 
       const securityData = await this.getSecurityData(orgId);
       const lastScan = securityData?.lastScan ? new Date(securityData.lastScan) : null;

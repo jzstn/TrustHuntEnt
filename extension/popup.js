@@ -53,7 +53,8 @@ class TrustHuntPopup {
       /https:\/\/.*\.salesforce\.com/,
       /https:\/\/.*\.force\.com/,
       /https:\/\/.*\.my\.salesforce\.com/,
-      /https:\/\/.*\.lightning\.force\.com/
+      /https:\/\/.*\.lightning\.force\.com/,
+      /https:\/\/.*\.develop\.lightning\.force\.com/
     ];
     
     return salesforcePatterns.some(pattern => pattern.test(url));
@@ -139,7 +140,7 @@ class TrustHuntPopup {
   }
 
   determineOrgType(hostname) {
-    if (hostname.includes('--dev') || hostname.includes('developer')) {
+    if (hostname.includes('--dev') || hostname.includes('developer') || hostname.includes('develop')) {
       return 'developer';
     } else if (hostname.includes('--') || hostname.includes('sandbox')) {
       return 'sandbox';
