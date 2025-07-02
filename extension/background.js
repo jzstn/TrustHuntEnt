@@ -47,12 +47,6 @@ class TrustHuntBackground {
     });
   }
 
-  handleInstallation() {
-    // First time installation
-    this.showWelcomeNotification();
-    this.initializeDefaultSettings();
-  }
-
   handleUpdate(previousVersion) {
     console.log(`Extension updated from ${previousVersion}`);
     // Add update-specific logic here if needed
@@ -92,6 +86,11 @@ class TrustHuntBackground {
           sendResponse({ success: true, data: orgInfo });
           break;
 
+        case 'ORG_DETECTED':
+          await this.handleOrgDetected(message.orgInfo, sender.tab);
+          sendResponse({ success: true });
+          break;
+
         case 'START_SCAN':
           const scanResult = await this.startSecurityScan(message.orgId, message.options);
           sendResponse({ success: true, data: scanResult });
@@ -109,11 +108,6 @@ class TrustHuntBackground {
 
         case 'UPDATE_BADGE':
           await this.updateBadge(message.tabId, message.count);
-          sendResponse({ success: true });
-          break;
-
-        case 'ORG_DETECTED':
-          await this.handleOrgDetected(message.orgInfo, sender.tab);
           sendResponse({ success: true });
           break;
 
@@ -554,6 +548,16 @@ class TrustHuntBackground {
     } catch (error) {
       console.error('Error cleaning up old data:', error);
     }
+  }
+
+  async getOrgInfo(tab) {
+    // This would be implemented to get org info from a tab
+    return null;
+  }
+
+  async handleScanCompleted(orgId, data) {
+    // This would be implemented to handle scan completion
+    console.log(`Scan completed for org ${orgId}`);
   }
 }
 

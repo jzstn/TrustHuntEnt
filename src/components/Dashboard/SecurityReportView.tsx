@@ -13,22 +13,22 @@ import {
   Info,
   Code,
   Eye,
-  Lock
+  Lock,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useSecurityStore } from '../../store/useSecurityStore';
 import { format } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
-interface SecurityReportViewProps {
-  onBack?: () => void;
-}
-
-export const SecurityReportView: React.FC<SecurityReportViewProps> = ({ onBack }) => {
+export const SecurityReportView: React.FC = () => {
   const { vulnerabilities, organizations } = useSecurityStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSeverity, setSelectedSeverity] = useState<string>('all');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [expandedDetails, setExpandedDetails] = useState<Set<string>>(new Set());
+  const navigate = useNavigate();
 
   // Group vulnerabilities by class/component
   const vulnerabilitiesByClass = React.useMemo(() => {
@@ -163,41 +163,41 @@ export const SecurityReportView: React.FC<SecurityReportViewProps> = ({ onBack }
     URL.revokeObjectURL(url);
   };
 
+  const handleBack = () => {
+    navigate('/');
+  };
+
   if (vulnerabilities.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center max-w-4xl mx-auto mt-8">
         <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">No Vulnerabilities Found</h3>
         <p className="text-gray-600 mb-4">
           Run a security scan to discover vulnerabilities in your Salesforce organization.
         </p>
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
-          </button>
-        )}
+        <button
+          onClick={handleBack}
+          className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="max-w-7xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-4">
-            {onBack && (
-              <button
-                onClick={onBack}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-            )}
+            <button
+              onClick={handleBack}
+              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
             <div>
               <h2 className="text-2xl font-bold text-gray-900 flex items-center">
                 <Shield className="w-6 h-6 text-red-600 mr-3" />
@@ -455,10 +455,6 @@ export const SecurityReportView: React.FC<SecurityReportViewProps> = ({ onBack }
                           <FileText className="w-4 h-4" />
                           <span>{vulnerability.location}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
-                          <Clock className="w-4 h-4" />
-                          <span>{format(new Date(vulnerability.discoveredAt), 'MMM dd, yyyy HH:mm')}</span>
-                        </div>
                       </div>
                       <p className="text-gray-700 mb-3">{vulnerability.description}</p>
                     </div>
@@ -471,9 +467,15 @@ export const SecurityReportView: React.FC<SecurityReportViewProps> = ({ onBack }
                       className="flex items-center space-x-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
                     >
                       {expandedDetails.has(vulnerability.id) ? (
-                        <span>Hide Details</span>
+                        <>
+                          <ChevronDown className="w-4 h-4" />
+                          <span>Hide Details</span>
+                        </>
                       ) : (
-                        <span>Show Details</span>
+                        <>
+                          <ChevronRight className="w-4 h-4" />
+                          <span>Show Details</span>
+                        </>
                       )}
                     </button>
 

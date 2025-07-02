@@ -78,6 +78,25 @@ class TrustHuntContent {
 
       const url = new URL(window.location.href);
       
+      // Check for Lightning or Visualforce
+      const isLightning = url.hostname.includes('lightning.force.com') || 
+                          url.hostname.includes('develop.lightning.force.com') ||
+                          document.querySelector('[data-aura-class]') !== null;
+      
+      const isVisualforce = url.pathname.includes('/apex/') || 
+                           document.querySelector('.vfPage') !== null;
+      
+      // If we have any Salesforce indicators, consider it a Salesforce org
+      const isSalesforce = isLightning || 
+                          isVisualforce || 
+                          url.hostname.includes('salesforce.com') || 
+                          url.hostname.includes('force.com') ||
+                          document.querySelector('.slds-') !== null;
+
+      if (!isSalesforce) {
+        return null;
+      }
+      
       return {
         orgName: orgName || 'Salesforce Organization',
         orgId: orgId || this.generateOrgIdFromUrl(url),
@@ -252,7 +271,7 @@ class TrustHuntContent {
 
   openSecurityReport() {
     // Open TrustHunt web app
-    window.open('http://localhost:5173', '_blank');
+    window.open('http://localhost:5173/report', '_blank');
   }
 
   handleSecurityDataUpdate(orgId, data) {

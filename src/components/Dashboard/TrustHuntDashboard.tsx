@@ -4,169 +4,47 @@ import { useSalesforcePasswordAuth } from '../../hooks/useSalesforcePasswordAuth
 import { useSalesforceTokenAuth } from '../../hooks/useSalesforceTokenAuth';
 import { EnterpriseSecurityOrchestrator } from '../../services/enterprise/EnterpriseSecurityOrchestrator';
 import { RealTimeSecurityMonitor } from '../../services/monitoring/RealTimeSecurityMonitor';
-import { SIEMIntegrationService } from '../../services/integration/SIEMIntegrationService';
-import { CICDIntegrationService } from '../../services/cicd/CICDIntegrationService';
 import { SalesforceConnectionModal } from './SalesforceConnectionModal';
 import { SalesforceTokenModal } from './SalesforceTokenModal';
 import { OAuthTestModal } from './OAuthTestModal';
 import { AuthenticationGuide } from './AuthenticationGuide';
-import { VulnerabilityReportsView } from './VulnerabilityReportsView';
-import { SecurityReportView } from './SecurityReportView';
+import { useNavigate } from 'react-router-dom';
 import { 
   Shield, 
-  Activity, 
   AlertTriangle, 
-  AlertCircle,
-  TrendingUp, 
-  Clock, 
-  Users, 
-  Building2,
-  Zap,
-  Target,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Settings,
-  Bell,
-  Download,
-  Eye,
-  Search,
-  Filter,
-  BarChart3,
-  Network,
-  Brain,
-  Lock,
-  Globe,
-  Server,
-  Database,
-  Cpu,
-  HardDrive,
+  CheckCircle, 
+  Settings, 
+  Loader, 
   ExternalLink,
   Play,
   Key,
-  Code,
+  Lock,
+  HelpCircle,
   TestTube,
   Wifi,
   WifiOff,
-  HelpCircle,
-  Loader,
-  Info
+  RefreshCw,
+  FileText
 } from 'lucide-react';
-import { format } from 'date-fns';
-
-interface EnterpriseMetrics {
-  totalOrganizations: number;
-  totalVulnerabilities: number;
-  criticalVulnerabilities: number;
-  averageRiskScore: number;
-  activeScans: number;
-  complianceScore: number;
-  systemHealth: 'healthy' | 'warning' | 'critical';
-  lastUpdated: Date;
-  aiSecurityEvents: number;
-  crossOrgIssues: number;
-  temporalAnomalies: number;
-  dastFindings: number;
-}
-
-interface SecurityAlert {
-  id: string;
-  severity: 'critical' | 'high' | 'medium' | 'low';
-  title: string;
-  description: string;
-  timestamp: Date;
-  orgId: string;
-  category: 'vulnerability' | 'ai_security' | 'temporal_risk' | 'cross_org' | 'dast' | 'compliance';
-  acknowledged: boolean;
-  assignedTo?: string;
-}
-
-interface ComplianceFramework {
-  name: string;
-  status: 'compliant' | 'partial' | 'non_compliant';
-  score: number;
-  requirements: number;
-  passed: number;
-  failed: number;
-  lastAssessment: Date;
-}
 
 export const TrustHuntDashboard: React.FC = () => {
-  const [selectedView, setSelectedView] = useState<'overview' | 'vulnerabilities' | 'ai_security' | 'cross_org' | 'dast' | 'compliance' | 'monitoring' | 'report'>('overview');
-  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
-  const [filterSeverity, setFilterSeverity] = useState<string>('all');
-  const [showFilters, setShowFilters] = useState(false);
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [showOAuthTestModal, setShowOAuthTestModal] = useState(false);
   const [showAuthGuide, setShowAuthGuide] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isScanning, setIsScanning] = useState(false);
-
-  const [enterpriseMetrics, setEnterpriseMetrics] = useState<EnterpriseMetrics>({
-    totalOrganizations: 0,
-    totalVulnerabilities: 0,
-    criticalVulnerabilities: 0,
-    averageRiskScore: 0,
-    activeScans: 0,
-    complianceScore: 0,
-    systemHealth: 'healthy',
-    lastUpdated: new Date(),
-    aiSecurityEvents: 0,
-    crossOrgIssues: 0,
-    temporalAnomalies: 0,
-    dastFindings: 0
-  });
-
-  const [securityAlerts, setSecurityAlerts] = useState<SecurityAlert[]>([]);
-  const [complianceFrameworks, setComplianceFrameworks] = useState<ComplianceFramework[]>([
-    {
-      name: 'SOC 2 Type II',
-      status: 'compliant',
-      score: 95,
-      requirements: 64,
-      passed: 61,
-      failed: 3,
-      lastAssessment: new Date()
-    },
-    {
-      name: 'GDPR',
-      status: 'partial',
-      score: 78,
-      requirements: 32,
-      passed: 25,
-      failed: 7,
-      lastAssessment: new Date()
-    },
-    {
-      name: 'HIPAA',
-      status: 'compliant',
-      score: 92,
-      requirements: 45,
-      passed: 41,
-      failed: 4,
-      lastAssessment: new Date()
-    },
-    {
-      name: 'PCI DSS',
-      status: 'non_compliant',
-      score: 65,
-      requirements: 78,
-      passed: 51,
-      failed: 27,
-      lastAssessment: new Date()
-    }
-  ]);
+  const navigate = useNavigate();
 
   const {
-    organizations,
     vulnerabilities,
     aiSecurityEvents,
     crossOrgAnalyses,
     temporalRiskEvents,
     activeScans,
     dashboardMetrics,
-    isLoading
+    isLoading,
+    organizations
   } = useSecurityStore();
 
   const passwordAuth = useSalesforcePasswordAuth();
@@ -199,61 +77,6 @@ export const TrustHuntDashboard: React.FC = () => {
     enableTrendAnalysis: true,
     retentionPeriod: 90
   }));
-
-  // Update enterprise metrics
-  useEffect(() => {
-    const criticalCount = vulnerabilities?.filter(v => v.severity === 'critical').length || 0;
-    const highCount = vulnerabilities?.filter(v => v.severity === 'high').length || 0;
-    const avgRiskScore = organizations?.length > 0 
-      ? organizations.reduce((sum, org) => sum + org.riskScore, 0) / organizations.length 
-      : 0;
-
-    // Calculate system health
-    let systemHealth: 'healthy' | 'warning' | 'critical' = 'healthy';
-    if (criticalCount > 10) systemHealth = 'critical';
-    else if (criticalCount > 5 || highCount > 20) systemHealth = 'warning';
-
-    // Calculate compliance score
-    const complianceScore = complianceFrameworks.reduce((sum, framework) => sum + framework.score, 0) / complianceFrameworks.length;
-
-    setEnterpriseMetrics({
-      totalOrganizations: organizations?.length || 0,
-      totalVulnerabilities: vulnerabilities?.length || 0,
-      criticalVulnerabilities: criticalCount,
-      averageRiskScore: Math.round(avgRiskScore),
-      activeScans: activeScans?.filter(s => s.status === 'running').length || 0,
-      complianceScore: Math.round(complianceScore),
-      systemHealth,
-      lastUpdated: new Date(),
-      aiSecurityEvents: aiSecurityEvents?.length || 0,
-      crossOrgIssues: crossOrgAnalyses?.length || 0,
-      temporalAnomalies: temporalRiskEvents?.length || 0,
-      dastFindings: 0 // Would be populated from DAST scans
-    });
-
-    // Generate security alerts from vulnerabilities
-    const alerts: SecurityAlert[] = vulnerabilities
-      ?.filter(v => v.severity === 'critical' || v.severity === 'high')
-      .slice(0, 10)
-      .map(v => ({
-        id: v.id,
-        severity: v.severity,
-        title: v.title,
-        description: v.description,
-        timestamp: v.discoveredAt,
-        orgId: v.orgId,
-        category: 'vulnerability',
-        acknowledged: false
-      })) || [];
-
-    setSecurityAlerts(alerts);
-  }, [organizations, vulnerabilities, aiSecurityEvents, crossOrgAnalyses, temporalRiskEvents, activeScans, complianceFrameworks]);
-
-  // Start real-time monitoring
-  useEffect(() => {
-    securityMonitor.startMonitoring();
-    return () => securityMonitor.stopMonitoring();
-  }, [securityMonitor]);
 
   // Update connection status based on auth states
   useEffect(() => {
@@ -343,34 +166,6 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  const getHealthColor = (health: string) => {
-    switch (health) {
-      case 'healthy': return 'text-green-600 bg-green-100';
-      case 'warning': return 'text-yellow-600 bg-yellow-100';
-      case 'critical': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getComplianceColor = (status: string) => {
-    switch (status) {
-      case 'compliant': return 'text-green-600 bg-green-100';
-      case 'partial': return 'text-yellow-600 bg-yellow-100';
-      case 'non_compliant': return 'text-red-600 bg-red-100';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'critical': return 'text-red-600 bg-red-100 border-red-200';
-      case 'high': return 'text-orange-600 bg-orange-100 border-orange-200';
-      case 'medium': return 'text-yellow-600 bg-yellow-100 border-yellow-200';
-      case 'low': return 'text-green-600 bg-green-100 border-green-200';
-      default: return 'text-gray-600 bg-gray-100 border-gray-200';
-    }
-  };
-
   const getConnectionStatusIcon = () => {
     switch (connectionStatus) {
       case 'connecting':
@@ -410,14 +205,8 @@ export const TrustHuntDashboard: React.FC = () => {
     }
   };
 
-  // Handle vulnerability tile clicks
-  const handleVulnerabilityTileClick = (severity?: string) => {
-    setSelectedView('vulnerabilities');
-  };
-
-  // Handle view security report
-  const handleViewSecurityReport = () => {
-    setSelectedView('report');
+  const handleViewReports = () => {
+    navigate('/report');
   };
 
   if (isLoading) {
@@ -434,88 +223,6 @@ export const TrustHuntDashboard: React.FC = () => {
 
   const isConnected = connectedOrganizations.length > 0;
   const connectedOrg = connectedOrganizations[0];
-
-  // Show security report view
-  if (selectedView === 'report') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Navigation Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-[1920px] mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Brand */}
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      TrustHunt Enterprise
-                    </h1>
-                    <p className="text-xs text-gray-500">Salesforce Security Assessment Platform</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection Status */}
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getConnectionStatusColor()}`}>
-                {getConnectionStatusIcon()}
-                <span className="hidden sm:inline">{getConnectionStatusText()}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-[1920px] mx-auto px-6 py-6">
-          <SecurityReportView 
-            onBack={() => setSelectedView('overview')}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  // Show vulnerability reports view
-  if (selectedView === 'vulnerabilities') {
-    return (
-      <div className="min-h-screen bg-gray-50">
-        {/* Navigation Header */}
-        <div className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-          <div className="max-w-[1920px] mx-auto px-6 py-4">
-            <div className="flex items-center justify-between">
-              {/* Brand */}
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-                    <Shield className="w-6 h-6 text-white" />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-                      TrustHunt Enterprise
-                    </h1>
-                    <p className="text-xs text-gray-500">Salesforce Security Assessment Platform</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Connection Status */}
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getConnectionStatusColor()}`}>
-                {getConnectionStatusIcon()}
-                <span className="hidden sm:inline">{getConnectionStatusText()}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-[1920px] mx-auto px-6 py-6">
-          <VulnerabilityReportsView 
-            onBack={() => setSelectedView('overview')}
-          />
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -538,38 +245,12 @@ export const TrustHuntDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Navigation */}
-            <nav className="hidden lg:flex items-center space-x-1">
-              {[
-                { id: 'overview', label: 'Overview', icon: BarChart3 },
-                { id: 'vulnerabilities', label: 'Vulnerabilities', icon: Shield },
-                { id: 'ai_security', label: 'AI Security', icon: Brain },
-                { id: 'cross_org', label: 'Cross-Org', icon: Network },
-                { id: 'dast', label: 'DAST Engine', icon: Search },
-                { id: 'compliance', label: 'Compliance', icon: CheckCircle },
-                { id: 'monitoring', label: 'Monitoring', icon: Activity }
-              ].map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setSelectedView(item.id as any)}
-                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    selectedView === item.id
-                      ? 'bg-blue-100 text-blue-700 shadow-sm'
-                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-                >
-                  <item.icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </button>
-              ))}
-            </nav>
-
             {/* Actions */}
             <div className="flex items-center space-x-4">
               {/* System Health */}
-              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium ${getHealthColor(enterpriseMetrics.systemHealth)}`}>
-                <Activity className="w-4 h-4" />
-                <span className="hidden sm:inline">System {enterpriseMetrics.systemHealth}</span>
+              <div className={`flex items-center space-x-2 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800`}>
+                <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse"></div>
+                <span className="hidden sm:inline">System Healthy</span>
               </div>
 
               {/* Connection Status */}
@@ -631,7 +312,7 @@ export const TrustHuntDashboard: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      <Zap className="w-4 h-4" />
+                      <Play className="w-4 h-4" />
                       <span>Start Scan</span>
                     </>
                   )}
@@ -811,130 +492,6 @@ export const TrustHuntDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Enterprise Metrics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4 mb-8">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Organizations</p>
-                <p className="text-2xl font-bold text-gray-900">{enterpriseMetrics.totalOrganizations}</p>
-              </div>
-              <Building2 className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="mt-1 text-xs text-green-600">
-              <TrendingUp className="w-3 h-3 inline mr-1" />
-              +{enterpriseMetrics.totalOrganizations} connected
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => handleVulnerabilityTileClick()}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Vulnerabilities</p>
-                <p className="text-2xl font-bold text-gray-900">{enterpriseMetrics.totalVulnerabilities}</p>
-              </div>
-              <AlertTriangle className="w-6 h-6 text-orange-600" />
-            </div>
-            <div className="mt-1 text-xs text-red-600">
-              {enterpriseMetrics.criticalVulnerabilities} critical
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Risk Score</p>
-                <p className="text-2xl font-bold text-gray-900">{enterpriseMetrics.averageRiskScore}%</p>
-              </div>
-              <Target className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="mt-1 text-xs text-green-600">
-              <TrendingUp className="w-3 h-3 inline mr-1" />
-              Improving
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Active Scans</p>
-                <p className="text-2xl font-bold text-blue-600">{enterpriseMetrics.activeScans}</p>
-              </div>
-              <Activity className="w-6 h-6 text-blue-600" />
-            </div>
-            <div className="mt-1 text-xs text-blue-600">
-              {isScanning ? 'Scanning...' : 'Real-time monitoring'}
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setSelectedView('ai_security')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">AI Security</p>
-                <p className="text-2xl font-bold text-purple-600">{enterpriseMetrics.aiSecurityEvents}</p>
-              </div>
-              <Brain className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="mt-1 text-xs text-purple-600">
-              Einstein GPT monitored
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setSelectedView('cross_org')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Cross-Org</p>
-                <p className="text-2xl font-bold text-cyan-600">{enterpriseMetrics.crossOrgIssues}</p>
-              </div>
-              <Network className="w-6 h-6 text-cyan-600" />
-            </div>
-            <div className="mt-1 text-xs text-cyan-600">
-              Environment drift
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setSelectedView('monitoring')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Temporal Risk</p>
-                <p className="text-2xl font-bold text-yellow-600">{enterpriseMetrics.temporalAnomalies}</p>
-              </div>
-              <Clock className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div className="mt-1 text-xs text-yellow-600">
-              Time-based anomalies
-            </div>
-          </div>
-
-          <div 
-            className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => setSelectedView('compliance')}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-600">Compliance</p>
-                <p className="text-2xl font-bold text-green-600">{enterpriseMetrics.complianceScore}%</p>
-              </div>
-              <CheckCircle className="w-6 h-6 text-green-600" />
-            </div>
-            <div className="mt-1 text-xs text-green-600">
-              Multi-framework
-            </div>
-          </div>
-        </div>
-
         {/* Connected Organization Info */}
         {isConnected && connectedOrg && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
@@ -976,11 +533,11 @@ export const TrustHuntDashboard: React.FC = () => {
                     )}
                   </button>
                   <button
-                    onClick={handleViewSecurityReport}
+                    onClick={handleViewReports}
                     className="bg-gray-100 text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-200 transition-colors flex items-center space-x-2"
                   >
                     <FileText className="w-4 h-4" />
-                    <span>View Report</span>
+                    <span>View Reports</span>
                   </button>
                 </div>
               </div>
@@ -988,182 +545,156 @@ export const TrustHuntDashboard: React.FC = () => {
           </div>
         )}
 
-        {/* Main Dashboard Content */}
-        {selectedView === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Vulnerabilities by Severity */}
-            <div 
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => handleVulnerabilityTileClick('critical')}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
-                  Critical Vulnerabilities
-                </h3>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                  {vulnerabilities.filter(v => v.severity === 'critical').length} Found
-                </span>
-              </div>
-              
+        {/* Security Summary */}
+        {isConnected && vulnerabilities.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <AlertTriangle className="w-5 h-5 text-red-600 mr-2" />
+                Critical Vulnerabilities
+              </h3>
               <div className="space-y-3">
                 {vulnerabilities
                   .filter(v => v.severity === 'critical')
                   .slice(0, 3)
                   .map(vuln => (
-                    <div key={vuln.id} className="p-3 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-medium text-gray-900">{vuln.title}</h4>
-                        <span className="text-xs font-medium text-red-600">CVSS {vuln.cvssScore}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-1">{vuln.location}</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">{format(new Date(vuln.discoveredAt), 'MMM dd, HH:mm')}</span>
-                        <span className="text-blue-600 hover:underline">View Details</span>
-                      </div>
+                    <div key={vuln.id} className="p-3 bg-red-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-900">{vuln.title}</h4>
+                      <p className="text-xs text-gray-600 mt-1">{vuln.location}</p>
                     </div>
                   ))}
-                
                 {vulnerabilities.filter(v => v.severity === 'critical').length === 0 && (
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">No critical vulnerabilities found</p>
+                  <div className="p-4 text-center text-gray-500">
+                    No critical vulnerabilities found
                   </div>
                 )}
-                
-                {vulnerabilities.filter(v => v.severity === 'critical').length > 3 && (
-                  <div className="text-center mt-4">
-                    <button 
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      onClick={() => handleVulnerabilityTileClick('critical')}
-                    >
-                      View All Critical Vulnerabilities
-                    </button>
-                  </div>
-                )}
+                <button 
+                  onClick={handleViewReports}
+                  className="w-full mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View Full Report
+                </button>
               </div>
             </div>
-            
-            {/* High Vulnerabilities */}
-            <div 
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => handleVulnerabilityTileClick('high')}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <AlertCircle className="w-5 h-5 text-orange-600 mr-2" />
-                  High Vulnerabilities
-                </h3>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  {vulnerabilities.filter(v => v.severity === 'high').length} Found
-                </span>
-              </div>
-              
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <AlertTriangle className="w-5 h-5 text-orange-600 mr-2" />
+                High Risk Issues
+              </h3>
               <div className="space-y-3">
                 {vulnerabilities
                   .filter(v => v.severity === 'high')
                   .slice(0, 3)
                   .map(vuln => (
-                    <div key={vuln.id} className="p-3 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-medium text-gray-900">{vuln.title}</h4>
-                        <span className="text-xs font-medium text-orange-600">CVSS {vuln.cvssScore}</span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-1">{vuln.location}</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">{format(new Date(vuln.discoveredAt), 'MMM dd, HH:mm')}</span>
-                        <span className="text-blue-600 hover:underline">View Details</span>
-                      </div>
+                    <div key={vuln.id} className="p-3 bg-orange-50 rounded-lg">
+                      <h4 className="text-sm font-medium text-gray-900">{vuln.title}</h4>
+                      <p className="text-xs text-gray-600 mt-1">{vuln.location}</p>
                     </div>
                   ))}
-                
                 {vulnerabilities.filter(v => v.severity === 'high').length === 0 && (
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">No high vulnerabilities found</p>
+                  <div className="p-4 text-center text-gray-500">
+                    No high risk issues found
                   </div>
                 )}
-                
-                {vulnerabilities.filter(v => v.severity === 'high').length > 3 && (
-                  <div className="text-center mt-4">
-                    <button 
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      onClick={() => handleVulnerabilityTileClick('high')}
-                    >
-                      View All High Vulnerabilities
-                    </button>
-                  </div>
-                )}
+                <button 
+                  onClick={handleViewReports}
+                  className="w-full mt-2 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  View Full Report
+                </button>
               </div>
             </div>
-            
-            {/* Medium/Low Vulnerabilities */}
-            <div 
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md transition-shadow"
-              onClick={() => handleVulnerabilityTileClick('medium')}
-            >
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                  <Info className="w-5 h-5 text-yellow-600 mr-2" />
-                  Other Vulnerabilities
-                </h3>
-                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                  {vulnerabilities.filter(v => v.severity === 'medium' || v.severity === 'low').length} Found
-                </span>
-              </div>
-              
-              <div className="space-y-3">
-                {vulnerabilities
-                  .filter(v => v.severity === 'medium' || v.severity === 'low')
-                  .slice(0, 3)
-                  .map(vuln => (
-                    <div key={vuln.id} className={`p-3 ${vuln.severity === 'medium' ? 'bg-yellow-50 hover:bg-yellow-100' : 'bg-green-50 hover:bg-green-100'} rounded-lg transition-colors`}>
-                      <div className="flex items-center justify-between mb-1">
-                        <h4 className="text-sm font-medium text-gray-900">{vuln.title}</h4>
-                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${vuln.severity === 'medium' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'}`}>
-                          {vuln.severity.toUpperCase()}
-                        </span>
-                      </div>
-                      <p className="text-xs text-gray-600 mb-1">{vuln.location}</p>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-gray-500">{format(new Date(vuln.discoveredAt), 'MMM dd, HH:mm')}</span>
-                        <span className="text-blue-600 hover:underline">View Details</span>
-                      </div>
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                <FileText className="w-5 h-5 text-blue-600 mr-2" />
+                Security Report Summary
+              </h3>
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-red-50 p-3 rounded-lg text-center">
+                    <div className="text-xl font-bold text-red-600">
+                      {vulnerabilities.filter(v => v.severity === 'critical').length}
                     </div>
-                  ))}
-                
-                {vulnerabilities.filter(v => v.severity === 'medium' || v.severity === 'low').length === 0 && (
-                  <div className="p-4 bg-gray-50 rounded-lg text-center">
-                    <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">No medium/low vulnerabilities found</p>
+                    <div className="text-xs text-red-600">Critical</div>
                   </div>
-                )}
-                
-                {vulnerabilities.filter(v => v.severity === 'medium' || v.severity === 'low').length > 3 && (
-                  <div className="text-center mt-4">
-                    <button 
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      onClick={() => handleVulnerabilityTileClick('medium')}
-                    >
-                      View All Other Vulnerabilities
-                    </button>
+                  <div className="bg-orange-50 p-3 rounded-lg text-center">
+                    <div className="text-xl font-bold text-orange-600">
+                      {vulnerabilities.filter(v => v.severity === 'high').length}
+                    </div>
+                    <div className="text-xs text-orange-600">High</div>
                   </div>
-                )}
+                  <div className="bg-yellow-50 p-3 rounded-lg text-center">
+                    <div className="text-xl font-bold text-yellow-600">
+                      {vulnerabilities.filter(v => v.severity === 'medium').length}
+                    </div>
+                    <div className="text-xs text-yellow-600">Medium</div>
+                  </div>
+                  <div className="bg-green-50 p-3 rounded-lg text-center">
+                    <div className="text-xl font-bold text-green-600">
+                      {vulnerabilities.filter(v => v.severity === 'low').length}
+                    </div>
+                    <div className="text-xs text-green-600">Low</div>
+                  </div>
+                </div>
+                <button 
+                  onClick={handleViewReports}
+                  className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>View Detailed Report</span>
+                </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Last updated: {enterpriseMetrics.lastUpdated.toLocaleString()}</p>
-          <p className="mt-1">TrustHunt Enterprise Security Platform v1.0 | Powered by AI & Machine Learning</p>
-          <p className="mt-1">
-            Monitoring {enterpriseMetrics.totalOrganizations} organizations • 
-            {enterpriseMetrics.totalVulnerabilities} vulnerabilities tracked • 
-            {enterpriseMetrics.complianceScore}% compliance average
-          </p>
-        </div>
+        {/* Empty State for No Connection */}
+        {!isConnected && !isLoading && !isConnecting && (
+          <div className="text-center py-12">
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Shield className="w-12 h-12 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Salesforce Connection</h3>
+            <p className="text-gray-600 max-w-md mx-auto">
+              Connect to your Salesforce org using one of the methods above to start comprehensive security analysis and monitoring.
+            </p>
+          </div>
+        )}
+
+        {/* Empty State for No Vulnerabilities */}
+        {isConnected && vulnerabilities.length === 0 && !isScanning && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <Shield className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No Vulnerabilities Found Yet</h3>
+            <p className="text-gray-600 mb-6">
+              Start a security scan to discover potential vulnerabilities in your Salesforce organization.
+            </p>
+            <button
+              onClick={handleStartSecurityScan}
+              disabled={isScanning}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+            >
+              <Play className="w-5 h-5" />
+              <span>Start Security Scan</span>
+            </button>
+          </div>
+        )}
+
+        {/* Scanning State */}
+        {isScanning && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Security Scan in Progress</h3>
+            <p className="text-gray-600 mb-4">
+              Analyzing your Salesforce organization for security vulnerabilities...
+            </p>
+            <div className="w-full max-w-md mx-auto bg-gray-200 rounded-full h-2.5">
+              <div className="bg-blue-600 h-2.5 rounded-full animate-pulse" style={{ width: '70%' }}></div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Connection Modals */}
@@ -1192,6 +723,24 @@ export const TrustHuntDashboard: React.FC = () => {
         isOpen={showAuthGuide}
         onClose={() => setShowAuthGuide(false)}
       />
+
+      {/* Connection Error Display */}
+      {connectionError && (
+        <div className="fixed bottom-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg shadow-lg max-w-md">
+          <div className="flex items-start justify-between">
+            <div>
+              <h4 className="font-medium">Connection Error</h4>
+              <p className="text-sm mt-1">{connectionError}</p>
+            </div>
+            <button
+              onClick={clearError}
+              className="ml-4 text-red-700 hover:text-red-900 flex-shrink-0"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
