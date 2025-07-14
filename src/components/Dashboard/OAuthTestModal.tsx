@@ -166,21 +166,15 @@ export const OAuthTestModal: React.FC<OAuthTestModalProps> = ({ isOpen, onClose 
             <div className="flex items-start space-x-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
               <div>
-                <h4 className="text-sm font-medium text-amber-900">Demo Mode - CORS Proxy Required</h4>
+                <h4 className="text-sm font-medium text-amber-900">Local CORS Proxy Available</h4>
                 <p className="text-xs text-amber-800 mt-1">
-                  Direct API calls to Salesforce are blocked by CORS policy in browsers. 
-                  For demo purposes, we use a CORS proxy service.
+                  This app uses a local CORS proxy to handle Salesforce API requests.
+                  Make sure the proxy is running with <code>npm run proxy</code> in a separate terminal.
                 </p>
                 <div className="mt-2">
-                  <a 
-                    href="https://cors-anywhere.herokuapp.com/corsdemo" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center text-xs text-amber-700 hover:text-amber-800 underline"
-                  >
-                    <ExternalLink className="w-3 h-3 mr-1" />
-                    Enable CORS proxy (click here first)
-                  </a>
+                  <p className="text-xs text-amber-800">
+                    If you haven't started the proxy, run <code>npm run proxy</code> in a new terminal window.
+                  </p>
                 </div>
               </div>
             </div>

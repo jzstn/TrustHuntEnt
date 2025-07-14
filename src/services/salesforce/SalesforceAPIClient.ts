@@ -560,6 +560,14 @@ export class SalesforceAPIClient {
       return response;
     } catch (error) {
       console.error('❌ Request failed:', error);
+      
+      // Check if this is the local proxy and it failed
+      if (corsProxy.includes('localhost') && error.message.includes('Failed to fetch')) {
+        this.corsProxyManager.markProxyFailed(corsProxy);
+        console.log('⚠️ Local proxy not available, trying external proxies...');
+        throw new Error('Local CORS proxy not available. Make sure to run "npm run proxy" in a separate terminal.');
+      }
+      
       throw this.handleError(error);
     }
   }

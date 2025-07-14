@@ -88,29 +88,7 @@ export class SalesforceTokenAuth {
       signal: AbortSignal.timeout(30000) // 30 second timeout
     };
 
-    // Try direct connection first (no CORS proxy)
-    try {
-      console.log(`🔄 Attempting direct connection to Salesforce...`);
-      const response = await fetch(url, requestOptions);
-      
-      if (response.ok) {
-        console.log('✅ Direct connection successful');
-        return response;
-      } else if (response.status === 401) {
-        throw new Error('Authentication failed: Invalid or expired access token');
-      } else if (response.status === 403) {
-        throw new Error('Access denied: Insufficient permissions');
-      } else {
-        console.log(`⚠️ Direct connection failed with status ${response.status}, trying CORS proxy...`);
-      }
-    } catch (error) {
-      if (error.message.includes('Authentication failed') || error.message.includes('Access denied')) {
-        throw error;
-      }
-      console.log(`⚠️ Direct connection failed: ${error.message}, trying CORS proxy...`);
-    }
-
-    // Fallback to CORS proxy
+    // Always use CORS proxy to avoid CORS issues
     const maxAttempts = Math.min(3, this.corsProxyManager.getAllProxies().length);
     let lastError: Error;
 
@@ -159,23 +137,17 @@ export class SalesforceTokenAuth {
         console.error(`❌ Request error (attempt ${attempt}):`, error);
         lastError = error;
         
-        // Handle specific error types
-        if (error.name === 'AbortError') {
+        // Check if this is the local proxy and it failed
+        if (corsProxy.includes('localhost') && (error.message.includes('Failed to fetch') || error.name === 'AbortError')) {
           this.corsProxyManager.markProxyFailed(corsProxy);
-          if (attempt < maxAttempts) {
-            console.log('⏱️ Request timeout, trying next proxy...');
-            continue;
+          console.log('⚠️ Local proxy not available, trying external proxies...');
+          
+          // If this is the first attempt with the local proxy, show a helpful message
+          if (attempt === 1) {
+            console.log('💡 Tip: Start the local CORS proxy with "npm run proxy" for better performance');
           }
-          throw new Error('Request timeout: All CORS proxies are unresponsive. Please check your internet connection or try again later.');
-        }
-        
-        if (error.message.includes('Failed to fetch')) {
-          this.corsProxyManager.markProxyFailed(corsProxy);
-          if (attempt < maxAttempts) {
-            console.log('🔄 Network error, trying next proxy...');
-            continue;
-          }
-          throw new Error('Network error: Unable to connect to Salesforce. Please check your internet connection and ensure the Salesforce instance URL is correct.');
+          
+          continue;
         }
         
         // For authentication/permission errors, don't retry
@@ -283,10 +255,9 @@ export class SalesforceTokenAuth {
     } catch (error) {
       console.error('❌ Token validation error:', error);
       
-      // Check for CORS demo server error
-      if (error.message.includes('Failed to fetch') || error.message.includes('Network error') || 
-          error.message.includes('corsdemo') || error.message.includes('cors-anywhere')) {
-        throw new Error('CORS demo server access required. Please visit https://cors-anywhere.herokuapp.com/corsdemo and enable temporary access, then try again.');
+      // Check if local proxy is not running
+      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
+        throw new Error('Connection failed. Please make sure the local CORS proxy is running with "npm run proxy" or check your internet connection.');
       }
       
       // Provide helpful error messages for common issues

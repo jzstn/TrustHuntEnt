@@ -4,13 +4,13 @@
 export class CorsProxyManager {
   private static instance: CorsProxyManager;
   private corsProxies: string[] = [
-    // More reliable proxies first
+    // Local proxy first (most reliable)
+    'http://localhost:3001/proxy?url=',
+    // Fallback proxies
     'https://api.allorigins.win/raw?url=',
     'https://corsproxy.io/?',
-    // Backup proxies
     'https://proxy.cors.sh/',
     'https://cors.bridged.cc/',
-    // Keep cors-anywhere as last resort
     'https://cors-anywhere.herokuapp.com/'
   ];
   private currentProxyIndex = 0;

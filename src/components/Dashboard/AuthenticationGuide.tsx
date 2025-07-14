@@ -29,13 +29,13 @@ export const AuthenticationGuide: React.FC<AuthenticationGuideProps> = ({ isOpen
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        {/* Header */}
+                <h4 className="text-sm font-medium text-blue-900">Using the Local CORS Proxy:</h4>
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Shield className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
+                  <li>Open a new terminal window</li>
+                  <li>Run <code>npm run proxy</code> to start the local CORS proxy</li>
+                  <li>Keep this terminal running while using the application</li>
+                  <li>The app will automatically use this proxy for all Salesforce requests</li>
+                  <li>No need to enable the CORS demo server anymore</li>
               <h3 className="text-lg font-semibold text-gray-900">Authentication Setup Guide</h3>
               <p className="text-sm text-gray-600">Fix authentication issues and connect to Salesforce</p>
             </div>
