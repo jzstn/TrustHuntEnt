@@ -29,17 +29,11 @@ export const AuthenticationGuide: React.FC<AuthenticationGuideProps> = ({ isOpen
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <h4 className="text-sm font-medium text-blue-900">Using the Local CORS Proxy:</h4>
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                  <li>Open a new terminal window</li>
-                  <li>Run <code>npm run proxy</code> to start the local CORS proxy</li>
-                  <li>Keep this terminal running while using the application</li>
-                  <li>The app will automatically use this proxy for all Salesforce requests</li>
-                  <li>No need to enable the CORS demo server anymore</li>
+          <div>
               <h3 className="text-lg font-semibold text-gray-900">Authentication Setup Guide</h3>
               <p className="text-sm text-gray-600">Fix authentication issues and connect to Salesforce</p>
             </div>
-          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -74,6 +68,18 @@ export const AuthenticationGuide: React.FC<AuthenticationGuideProps> = ({ isOpen
 
         {/* Content */}
         <div className="p-6">
+          {/* Local CORS Proxy Instructions */}
+          <div className="mb-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 className="text-sm font-medium text-blue-900 mb-2">Using the Local CORS Proxy:</h4>
+            <ul className="text-sm text-blue-800 space-y-1">
+              <li>• Open a new terminal window</li>
+              <li>• Run <code className="bg-blue-100 px-1 rounded">npm run proxy</code> to start the local CORS proxy</li>
+              <li>• Keep this terminal running while using the application</li>
+              <li>• The app will automatically use this proxy for all Salesforce requests</li>
+              <li>• No need to enable the CORS demo server anymore</li>
+            </ul>
+          </div>
+
           {activeTab === 'cors' && (
             <div className="space-y-6">
               <div className="bg-red-50 border border-red-200 rounded-lg p-4">
