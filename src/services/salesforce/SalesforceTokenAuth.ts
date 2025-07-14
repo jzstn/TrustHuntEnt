@@ -88,8 +88,9 @@ export class SalesforceTokenAuth {
       signal: AbortSignal.timeout(30000) // 30 second timeout
     };
 
-    // Use CORS proxy with fallback strategy
-    const maxAttempts = Math.min(3, this.corsProxyManager.getAllProxies().length);
+    // Use CORS proxy with fallback strategy - try all available proxies
+    const allProxies = this.corsProxyManager.getAllProxies();
+    const maxAttempts = allProxies.length;
     let lastError: Error;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -97,7 +98,7 @@ export class SalesforceTokenAuth {
       const proxiedUrl = this.buildProxiedUrl(corsProxy, url);
 
       try {
-        console.log(`🔄 Making request via CORS proxy (attempt ${attempt}/${maxAttempts})...`);
+        console.log(`🔄 Making request via CORS proxy (attempt ${attempt}/${maxAttempts}): ${corsProxy}`);
         console.log(`Using proxy: ${corsProxy}`);
         
         const response = await fetch(proxiedUrl, requestOptions);
@@ -143,7 +144,7 @@ export class SalesforceTokenAuth {
             error.message.includes('ECONNREFUSED') ||
             error.message.includes('ERR_CONNECTION_REFUSED')) {
           this.corsProxyManager.markProxyFailed(corsProxy);
-          console.log('⚠️ CORS proxy not available. Trying another proxy...');
+          console.log(`⚠️ CORS proxy not available (${corsProxy}). Trying next proxy...`);
           continue;
         }
         
@@ -254,7 +255,7 @@ export class SalesforceTokenAuth {
       
       // Check if local proxy is not running
       if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
-        throw new Error('Connection failed. Please make sure the local CORS proxy is running with "npm run proxy" or check your internet connection.');
+        throw new Error('Connection failed. All CORS proxies are unavailable. Please check your internet connection or try again later.');
       }
       
       // Provide helpful error messages for common issues

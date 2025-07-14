@@ -155,11 +155,6 @@ export const TrustHuntDashboard: React.FC = () => {
     } catch (error) {
       console.error('❌ Token connection failed:', error);
       setConnectionStatus('error');
-      
-      // Show general error message
-      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
-        throw new Error('Connection failed. Please check your internet connection and try again.');
-      }
     }
   };
 

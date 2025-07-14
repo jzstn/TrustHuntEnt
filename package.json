@@ -24,7 +24,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:scripts": "node test-scripts/test-runner.js"
+    "test:scripts": "node test-scripts/test-runner.js",
+    "proxy": "node corsProxy.cjs"
   },
   "dependencies": {
     "date-fns": "^3.6.0",
