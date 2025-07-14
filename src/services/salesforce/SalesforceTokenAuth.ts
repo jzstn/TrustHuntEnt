@@ -201,16 +201,13 @@ export class SalesforceTokenAuth {
    */
   private buildProxiedUrl(corsProxy: string, targetUrl: string): string {
     try {
-      if (corsProxy.includes('allorigins.win')) {
+      if (corsProxy.includes('allorigins.win') || 
+          corsProxy.includes('corsproxy.io') || 
+          corsProxy.includes('cors.sh') || 
+          corsProxy.includes('bridged.cc')) {
         return `${corsProxy}${encodeURIComponent(targetUrl)}`;
-      } else if (corsProxy.includes('corsproxy.io')) {
-        return `${corsProxy}${encodeURIComponent(targetUrl)}`;
-      } else if (corsProxy.includes('cors.sh')) {
-        return `${corsProxy}${targetUrl}`;
-      } else if (corsProxy.includes('bridged.cc')) {
-        return `${corsProxy}${targetUrl}`;
       } else {
-        // Default CORS Anywhere format
+        // Default CORS Anywhere format (no encoding needed)
         return `${corsProxy}${targetUrl}`;
       }
     } catch (error) {

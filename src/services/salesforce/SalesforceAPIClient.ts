@@ -568,9 +568,10 @@ export class SalesforceAPIClient {
    * Build proxied URL based on proxy type
    */
   private buildProxiedUrl(corsProxy: string, targetUrl: string): string {
-    if (corsProxy.includes('allorigins.win')) {
-      return `${corsProxy}${encodeURIComponent(targetUrl)}`;
-    } else if (corsProxy.includes('corsproxy.io')) {
+    if (corsProxy.includes('allorigins.win') || 
+        corsProxy.includes('corsproxy.io') || 
+        corsProxy.includes('cors.sh') || 
+        corsProxy.includes('bridged.cc')) {
       return `${corsProxy}${encodeURIComponent(targetUrl)}`;
     } else {
       // Default CORS Anywhere format
