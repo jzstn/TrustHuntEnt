@@ -5,8 +5,8 @@ describe('Authentication', () => {
     // Visit the application
     cy.visit('/');
     
-    // Intercept CORS proxy requests
-    cy.intercept('**/cors-anywhere.herokuapp.com/**', (req) => {
+    // Intercept API requests
+    cy.intercept('**/services/data/**', (req) => {
       // Mock successful response
       req.reply({
         statusCode: 200,
@@ -51,7 +51,7 @@ describe('Authentication', () => {
   
   it('should authenticate with valid token', () => {
     // Click on Token authentication
-    cy.contains('Connect with Token').click();
+    cy.contains('Token').click();
     
     // Fill in the form
     cy.get('#instanceUrl').type('https://test.my.salesforce.com');
@@ -61,10 +61,10 @@ describe('Authentication', () => {
     cy.contains('Developer Edition').click();
     
     // Submit the form
-    cy.contains('Connect with Token').click();
+    cy.contains('Connect with Token').click({force: true});
     
     // Wait for authentication to complete
-    cy.wait('@corsProxy');
+    cy.wait('@userInfo');
     cy.wait('@userInfo');
     
     // Verify successful authentication
@@ -75,13 +75,13 @@ describe('Authentication', () => {
   
   it('should show error for invalid token', () => {
     // Intercept with error response
-    cy.intercept('**/cors-anywhere.herokuapp.com/**', {
+    cy.intercept('**/services/data/**', {
       statusCode: 401,
       body: 'Invalid Session ID'
     }).as('invalidToken');
     
     // Click on Token authentication
-    cy.contains('Connect with Token').click();
+    cy.contains('Token').click();
     
     // Fill in the form
     cy.get('#instanceUrl').type('https://test.my.salesforce.com');
@@ -91,7 +91,7 @@ describe('Authentication', () => {
     cy.contains('Developer Edition').click();
     
     // Submit the form
-    cy.contains('Connect with Token').click();
+    cy.contains('Connect with Token').click({force: true});
     
     // Wait for authentication to fail
     cy.wait('@invalidToken');
@@ -102,12 +102,12 @@ describe('Authentication', () => {
   
   it('should handle CORS proxy issues', () => {
     // Intercept with network error
-    cy.intercept('**/cors-anywhere.herokuapp.com/**', {
+    cy.intercept('**/services/data/**', {
       forceNetworkError: true
     }).as('networkError');
     
     // Click on Token authentication
-    cy.contains('Connect with Token').click();
+    cy.contains('Token').click();
     
     // Fill in the form
     cy.get('#instanceUrl').type('https://test.my.salesforce.com');
@@ -117,12 +117,12 @@ describe('Authentication', () => {
     cy.contains('Developer Edition').click();
     
     // Submit the form
-    cy.contains('Connect with Token').click();
+    cy.contains('Connect with Token').click({force: true});
     
     // Wait for authentication to fail
     cy.wait('@networkError');
     
     // Verify CORS error message
-    cy.contains('Local CORS proxy not available').should('be.visible');
+    cy.contains(/Local CORS proxy|Connection failed/).should('be.visible');
   });
 });

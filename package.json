@@ -23,7 +23,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "test:e2e": "cypress run",
+    "test:e2e": "cypress run --browser chrome",
     "test:e2e:open": "cypress open",
     "test:scripts": "node test-scripts/test-runner.js"
   },
