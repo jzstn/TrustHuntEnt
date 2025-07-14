@@ -86,26 +86,13 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
                 <div className="flex items-start space-x-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-medium text-red-900">CORS Demo Server Required</h4>
+                    <h4 className="text-sm font-medium text-red-900">Local CORS Proxy Required</h4>
                     <p className="text-xs text-red-800 mt-1">
-                      The CORS Anywhere demo server needs to be enabled before you can connect.
+                      The local CORS proxy needs to be running before you can connect.
                     </p>
                     <div className="mt-3">
-                      <a 
-                        href="https://cors-anywhere.herokuapp.com/corsdemo" 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center px-3 py-2 bg-red-600 text-white text-xs rounded-lg hover:bg-red-700 transition-colors"
-                      >
-                        <ExternalLink className="w-3 h-3 mr-1" />
-                        Enable CORS Demo Server
-                      </a>
-                    </div>
-                    <div className="mt-2 space-y-1">
-                      <p className="text-xs text-red-800 font-medium">Steps:</p>
-                      <p className="text-xs text-red-800">1. Click the button above</p>
-                      <p className="text-xs text-red-800">2. Click "Request temporary access to the demo server"</p>
-                      <p className="text-xs text-red-800">3. Return here and try connecting again</p>
+                      <p className="text-xs text-red-800 font-medium">Run this command in a new terminal:</p>
+                      <pre className="bg-gray-800 text-white p-2 rounded mt-2 text-xs">npm run proxy</pre>
                     </div>
                   </div>
                 </div>
