@@ -158,7 +158,7 @@ export const TrustHuntDashboard: React.FC = () => {
       
       // Show general error message
       if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
-        alert('❌ Connection Failed\n\nPlease check your internet connection and try again.');
+        throw new Error('Connection failed. Please check your internet connection and try again.');
       }
     }
   };

@@ -64,12 +64,6 @@ export class SalesforceTokenAuth {
    * Make a request to Salesforce API with improved error handling and fallback
    */
   private async makeRequest(url: string, options: RequestInit = {}): Promise<Response> {
-    // Check if local CORS proxy is running first
-    const isLocalProxyRunning = await this.checkLocalProxy();
-    if (!isLocalProxyRunning) {
-      console.warn('⚠️ Local CORS proxy is not running. Starting fallback to external proxies...');
-    }
-
     // Validate the URL before making the request
     try {
       new URL(url);
@@ -205,14 +199,6 @@ export class SalesforceTokenAuth {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  /**
-   * Check if local CORS proxy is running
-   */
-  private async checkLocalProxy(): Promise<boolean> {
-    // Always return true since we're not using local proxy anymore
-    return true;
   }
 
   /**

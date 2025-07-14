@@ -4,6 +4,7 @@
 export class CorsProxyManager {
   private static instance: CorsProxyManager;
   private corsProxies: string[] = [
+    'http://localhost:3001/',
     // Fallback proxies
     'https://api.allorigins.win/raw?url=',
     'https://corsproxy.io/?',
