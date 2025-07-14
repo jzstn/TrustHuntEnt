@@ -283,18 +283,15 @@ export class SalesforceTokenAuth {
     } catch (error) {
       console.error('❌ Token validation error:', error);
       
+      // Check for CORS demo server error
+      if (error.message.includes('Failed to fetch') || error.message.includes('Network error') || 
+          error.message.includes('corsdemo') || error.message.includes('cors-anywhere')) {
+        throw new Error('CORS demo server access required. Please visit https://cors-anywhere.herokuapp.com/corsdemo and enable temporary access, then try again.');
+      }
+      
       // Provide helpful error messages for common issues
       if (error.message.includes('rate limit') || error.message.includes('429')) {
         throw new Error('CORS proxy rate limit exceeded. Please wait a few minutes and try again, or set up your own CORS proxy for unlimited access.');
-      }
-      
-      if (error.message.includes('Network error') || error.message.includes('Failed to fetch')) {
-        throw new Error('Unable to connect to Salesforce. Please check your internet connection and ensure the instance URL is correct.');
-      }
-      
-      // Check for CORS demo server error
-      if (error.message.includes('corsdemo') || error.message.includes('cors-anywhere')) {
-        throw new Error('CORS demo server access required. Please visit https://cors-anywhere.herokuapp.com/corsdemo and enable temporary access, then try again.');
       }
       
       throw error;
