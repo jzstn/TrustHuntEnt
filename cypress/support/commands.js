@@ -23,17 +23,3 @@
 //
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
-
-// Custom command to set Zustand store state
-Cypress.Commands.add('setZustandStore', (storeFn, newState) => {
-  cy.window().then(window => {
-    window[storeFn].setState(newState);
-  });
-});
-
-// Custom command to get Zustand store state
-Cypress.Commands.add('getZustandStore', (storeFn) => {
-  return cy.window().then(window => {
-    return window[storeFn].getState();
-  });
-});
