@@ -80,24 +80,6 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
 
           {/* Content */}
           <div className="p-6">
-            {/* CORS Demo Server Required */}
-            {isCorsError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                <div className="flex items-start space-x-3">
-                  <AlertTriangle className="w-5 h-5 text-red-600 mt-0.5" />
-                  <div>
-                    <h4 className="text-sm font-medium text-red-900">Local CORS Proxy Required</h4>
-                    <p className="text-xs text-red-800 mt-1">
-                      The local CORS proxy needs to be running before you can connect.
-                    </p>
-                    <div className="mt-3">
-                      <p className="text-xs text-red-800 font-medium">Run this command in a new terminal:</p>
-                      <pre className="bg-gray-800 text-white p-2 rounded mt-2 text-xs">npm run proxy</pre>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {/* Connection Status */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
@@ -105,11 +87,11 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-medium text-blue-900">Enhanced Connection Method</h4>
+                    <h4 className="text-sm font-medium text-blue-900">Automatic CORS Handling</h4>
                     <div className="text-xs text-blue-800 mt-1 space-y-1">
                       <p>• Tries direct connection first (fastest)</p>
-                      <p>• Falls back to CORS proxies if needed</p>
-                      <p>• Automatically switches between available proxies</p>
+                      <p>• Uses public CORS proxies automatically</p>
+                      <p>• Switches between proxies if rate limited</p>
                       <p>• Improved error handling and recovery</p>
                     </div>
                   </div>

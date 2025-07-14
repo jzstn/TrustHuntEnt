@@ -144,20 +144,12 @@ export class SalesforceTokenAuth {
         lastError = error;
         
         // Handle local proxy connection failures
-        if (corsProxy.includes('localhost') && (
-          error.message.includes('Failed to fetch') || 
-          error.name === 'AbortError' ||
-          error.message.includes('ECONNREFUSED') ||
-          error.message.includes('ERR_CONNECTION_REFUSED')
-        )) {
+        if (error.message.includes('Failed to fetch') || 
+            error.name === 'AbortError' ||
+            error.message.includes('ECONNREFUSED') ||
+            error.message.includes('ERR_CONNECTION_REFUSED')) {
           this.corsProxyManager.markProxyFailed(corsProxy);
-          console.log('⚠️ Local CORS proxy not available. Please run "npm run proxy" in a separate terminal.');
-          
-          // If this is the first attempt with the local proxy, show a helpful message
-          if (attempt === 1) {
-            console.log('💡 To fix this: Open a new terminal and run "npm run proxy"');
-          }
-          
+          console.log('⚠️ CORS proxy not available. Trying another proxy...');
           continue;
         }
         
@@ -219,15 +211,8 @@ export class SalesforceTokenAuth {
    * Check if local CORS proxy is running
    */
   private async checkLocalProxy(): Promise<boolean> {
-    try {
-      const response = await fetch('http://localhost:3001/health', {
-        method: 'GET',
-        signal: AbortSignal.timeout(2000) // 2 second timeout
-      });
-      return response.ok;
-    } catch (error) {
-      return false;
-    }
+    // Always return true since we're not using local proxy anymore
+    return true;
   }
 
   /**
@@ -235,12 +220,6 @@ export class SalesforceTokenAuth {
    */
   async validateToken(): Promise<SalesforceTokenResponse> {
     console.log('🔐 Validating Salesforce access token...');
-
-    // Check if local proxy is running
-    const isLocalProxyRunning = await this.checkLocalProxy();
-    if (!isLocalProxyRunning) {
-      throw new Error('Local CORS proxy is not running. Please start it with "npm run proxy" in a separate terminal, then try again.');
-    }
 
     if (!this.instanceUrl) {
       throw new Error('Instance URL is required for token validation');

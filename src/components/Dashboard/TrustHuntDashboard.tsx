@@ -156,9 +156,9 @@ export const TrustHuntDashboard: React.FC = () => {
       console.error('❌ Token connection failed:', error);
       setConnectionStatus('error');
       
-      // Show specific error message for CORS proxy issues
-      if (error.message.includes('Local CORS proxy is not running')) {
-        alert('❌ Connection Failed\n\nThe local CORS proxy is not running. Please:\n\n1. Open a new terminal\n2. Run: npm run proxy\n3. Keep that terminal open\n4. Try connecting again');
+      // Show general error message
+      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
+        alert('❌ Connection Failed\n\nPlease check your internet connection and try again.');
       }
     }
   };
