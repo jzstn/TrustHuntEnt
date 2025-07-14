@@ -31,9 +31,9 @@ export const AuthenticationGuide: React.FC<AuthenticationGuideProps> = ({ isOpen
       <div className="bg-white rounded-xl shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
-              <h3 className="text-lg font-semibold text-gray-900">Authentication Setup Guide</h3>
-              <p className="text-sm text-gray-600">Fix authentication issues and connect to Salesforce</p>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Authentication Setup Guide</h3>
+            <p className="text-sm text-gray-600">Fix authentication issues and connect to Salesforce</p>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
