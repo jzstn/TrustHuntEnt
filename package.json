@@ -17,7 +17,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "proxy": "node corsProxy.js",
+    "proxy": "node corsProxy.cjs",
     "start": "concurrently \"npm run dev\" \"npm run proxy\"",
     "test": "vitest",
     "test:ui": "vitest --ui",
