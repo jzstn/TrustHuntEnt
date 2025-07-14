@@ -155,6 +155,11 @@ export const TrustHuntDashboard: React.FC = () => {
     } catch (error) {
       console.error('❌ Token connection failed:', error);
       setConnectionStatus('error');
+      
+      // Show specific error message for CORS proxy issues
+      if (error.message.includes('Local CORS proxy is not running')) {
+        alert('❌ Connection Failed\n\nThe local CORS proxy is not running. Please:\n\n1. Open a new terminal\n2. Run: npm run proxy\n3. Keep that terminal open\n4. Try connecting again');
+      }
     }
   };
 
@@ -444,14 +449,14 @@ export const TrustHuntDashboard: React.FC = () => {
                     <div className="text-left">
                       <h4 className="text-sm font-medium text-red-900">Connection Failed</h4>
                       <p className="text-xs text-red-800 mt-1">{connectionError}</p>
-                      {(connectionError.includes('corsdemo') || connectionError.includes('CORS')) && (
+                      {(connectionError.includes('CORS proxy') || connectionError.includes('npm run proxy')) && (
                         <div className="mt-2">
-                          <button
-                            onClick={() => setShowAuthGuide(true)}
-                            className="text-xs text-red-700 underline hover:text-red-900 font-medium"
-                          >
-                            Click here for step-by-step fix →
-                          </button>
+                          <div className="bg-red-100 rounded p-2 mt-2">
+                            <p className="text-xs font-medium text-red-900">Quick Fix:</p>
+                            <p className="text-xs text-red-800">1. Open a new terminal</p>
+                            <p className="text-xs text-red-800">2. Run: <code className="bg-red-200 px-1 rounded">npm run proxy</code></p>
+                            <p className="text-xs text-red-800">3. Keep terminal open and try again</p>
+                          </div>
                         </div>
                       )}
                     </div>

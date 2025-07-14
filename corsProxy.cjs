@@ -5,6 +5,11 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'CORS proxy is running' });
+});
+
 // Enable CORS for all routes
 app.use(cors({
   origin: '*',

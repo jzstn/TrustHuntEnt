@@ -64,6 +64,12 @@ export class SalesforceTokenAuth {
    * Make a request to Salesforce API with improved error handling and fallback
    */
   private async makeRequest(url: string, options: RequestInit = {}): Promise<Response> {
+    // Check if local CORS proxy is running first
+    const isLocalProxyRunning = await this.checkLocalProxy();
+    if (!isLocalProxyRunning) {
+      console.warn('⚠️ Local CORS proxy is not running. Starting fallback to external proxies...');
+    }
+
     // Validate the URL before making the request
     try {
       new URL(url);
@@ -88,7 +94,7 @@ export class SalesforceTokenAuth {
       signal: AbortSignal.timeout(30000) // 30 second timeout
     };
 
-    // Always use CORS proxy to avoid CORS issues
+    // Use CORS proxy with fallback strategy
     const maxAttempts = Math.min(3, this.corsProxyManager.getAllProxies().length);
     let lastError: Error;
 
@@ -137,14 +143,19 @@ export class SalesforceTokenAuth {
         console.error(`❌ Request error (attempt ${attempt}):`, error);
         lastError = error;
         
-        // Check if this is the local proxy and it failed
-        if (corsProxy.includes('localhost') && (error.message.includes('Failed to fetch') || error.name === 'AbortError')) {
+        // Handle local proxy connection failures
+        if (corsProxy.includes('localhost') && (
+          error.message.includes('Failed to fetch') || 
+          error.name === 'AbortError' ||
+          error.message.includes('ECONNREFUSED') ||
+          error.message.includes('ERR_CONNECTION_REFUSED')
+        )) {
           this.corsProxyManager.markProxyFailed(corsProxy);
-          console.log('⚠️ Local proxy not available, trying external proxies...');
+          console.log('⚠️ Local CORS proxy not available. Please run "npm run proxy" in a separate terminal.');
           
           // If this is the first attempt with the local proxy, show a helpful message
           if (attempt === 1) {
-            console.log('💡 Tip: Start the local CORS proxy with "npm run proxy" for better performance');
+            console.log('💡 To fix this: Open a new terminal and run "npm run proxy"');
           }
           
           continue;
@@ -205,10 +216,31 @@ export class SalesforceTokenAuth {
   }
 
   /**
+   * Check if local CORS proxy is running
+   */
+  private async checkLocalProxy(): Promise<boolean> {
+    try {
+      const response = await fetch('http://localhost:3001/health', {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000) // 2 second timeout
+      });
+      return response.ok;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
    * Validate the provided token by making a test API call
    */
   async validateToken(): Promise<SalesforceTokenResponse> {
     console.log('🔐 Validating Salesforce access token...');
+
+    // Check if local proxy is running
+    const isLocalProxyRunning = await this.checkLocalProxy();
+    if (!isLocalProxyRunning) {
+      throw new Error('Local CORS proxy is not running. Please start it with "npm run proxy" in a separate terminal, then try again.');
+    }
 
     if (!this.instanceUrl) {
       throw new Error('Instance URL is required for token validation');
