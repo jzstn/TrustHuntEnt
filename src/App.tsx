@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { TrustHuntDashboard } from './components/Dashboard/TrustHuntDashboard';
 import { VulnerabilityReportsView } from './components/Dashboard/VulnerabilityReportsView';
 import { ScanResultsView } from './components/Dashboard/ScanResultsView';
@@ -7,7 +7,7 @@ import { SecurityReportView } from './components/Dashboard/SecurityReportView';
 
 function App() {
   return (
-    <Router>
+    <Router basename="/TrustHuntEnt">
       <Routes>
         <Route path="/" element={<TrustHuntDashboard />} />
         <Route path="/report" element={<SecurityReportView />} />
