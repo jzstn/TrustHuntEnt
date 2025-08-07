@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/TrustHuntEnt/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TrustHunt Enterprise - Salesforce Security Assessment Platform</title>
     <meta name="description" content="Enterprise-grade Salesforce security assessment platform with AI monitoring, DAST engine, cross-org analysis, and real-time threat detection. Built for Fortune 500 companies and consulting firms." />
@@ -13,13 +13,13 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="TrustHunt Enterprise - Salesforce Security Assessment Platform" />
     <meta property="og:description" content="Enterprise-grade Salesforce security assessment with AI monitoring, DAST engine, and real-time threat detection." />
-<meta property="og:image" content="trusthunt-og-image.png" />
+    <meta property="og:image" content="/TrustHuntEnt/trusthunt-og-image.png" />
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:title" content="TrustHunt Enterprise - Salesforce Security Assessment Platform" />
     <meta property="twitter:description" content="Enterprise-grade Salesforce security assessment with AI monitoring, DAST engine, and real-time threat detection." />
-<meta property="twitter:image" content="trusthunt-twitter-image.png" />
+    <meta property="twitter:image" content="/TrustHuntEnt/trusthunt-twitter-image.png" />
     
     <!-- Preload critical resources -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -29,51 +29,13 @@
     <meta name="theme-color" content="#2563eb" />
     <meta name="msapplication-TileColor" content="#2563eb" />
     
-    <!-- Security headers -->
-    <!-- Note: Security headers should be set by server, not meta tags for GitHub Pages -->
-    
     <!-- Enterprise features -->
     <meta name="application-name" content="TrustHunt Enterprise">
     <meta name="msapplication-tooltip" content="Enterprise Salesforce Security Assessment Platform">
-    <meta name="msapplication-starturl" content="/">
-    
-    <!-- GitHub Pages SPA support -->
-    <script type="text/javascript">
-      // Single Page Apps for GitHub Pages
-      // https://github.com/rafgraph/spa-github-pages
-      (function(l) {
-        if (l.search[1] === '/' ) {
-          var decoded = l.search.slice(1).split('&').map(function(s) { 
-            return s.replace(/~and~/g, '&')
-          }).join('?');
-          window.history.replaceState(null, null,
-              l.pathname.slice(0, -1) + decoded + l.hash
-          );
-        }
-      }(window.location))
-    </script>
-    
-    <!-- Structured data for enterprise applications -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "TrustHunt Enterprise",
-      "description": "Enterprise-grade Salesforce security assessment platform",
-      "applicationCategory": "SecurityApplication",
-      "operatingSystem": "Web Browser",
-      "offers": {
-        "@type": "Offer",
-        "category": "Enterprise Software"
-      },
-      "creator": {
-        "@type": "Organization",
-        "name": "TrustHunt"
-      }
-    }
-    </script>
+    <meta name="msapplication-starturl" content="/TrustHuntEnt/">
   </head>
   <body>
     <div id="root"></div>
+    <script type="module" src="/TrustHuntEnt/src/main.tsx"></script>
   </body>
 </html>
