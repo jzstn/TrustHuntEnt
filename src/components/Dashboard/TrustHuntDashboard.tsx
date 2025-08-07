@@ -154,8 +154,14 @@ export const TrustHuntDashboard: React.FC = () => {
       console.log('✅ Token connection successful');
     } catch (error) {
       console.error('❌ Token connection failed:', error);
-      // The error from the auth service is already user-friendly, so just re-throw it
-      throw error;
+      
+      // Provide helpful error message for CORS proxy issues
+      let errorMessage = error.message;
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network error')) {
+        errorMessage = 'Connection failed. Please make sure the local CORS proxy is running with "npm run proxy" or check your internet connection.';
+      }
+      
+      throw new Error(errorMessage);
     }
   };
 
