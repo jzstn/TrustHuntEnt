@@ -1,0 +1,14 @@
+# Netlify headers file (also works for some GitHub Pages configurations)
+/*
+  Content-Type: text/html; charset=UTF-8
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+
+/static/*.js
+  Content-Type: application/javascript; charset=UTF-8
+
+/static/*.css
+  Content-Type: text/css; charset=UTF-8
+
+/static/*.json
+  Content-Type: application/json; charset=UTF-8
