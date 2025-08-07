@@ -8,7 +8,7 @@ export class CorsProxyManager {
     'https://corsproxy.io/?',
     'https://cors.sh/',
     'https://api.codetabs.com/v1/proxy?quest=',
-    'https://thingproxy.freeboard.io/fetch/'
+    'https://thingproxy.freeboard.io/fetch/',
     'https://cors-anywhere.herokuapp.com/'
   ];
   private currentProxyIndex = 0;
