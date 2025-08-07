@@ -88,9 +88,21 @@ export class SalesforceTokenAuth {
       signal: AbortSignal.timeout(30000) // 30 second timeout
     };
 
-    // Use CORS proxy with fallback strategy - try all available proxies
+    // First try direct connection (might work in some environments)
+    try {
+      console.log('🔄 Attempting direct connection to Salesforce...');
+      const directResponse = await fetch(url, requestOptions);
+      if (directResponse.ok) {
+        console.log('✅ Direct connection successful');
+        return directResponse;
+      }
+    } catch (error) {
+      console.log('⚠️ Direct connection failed, trying CORS proxies...');
+    }
+
+    // Use CORS proxy with fallback strategy
     const allProxies = this.corsProxyManager.getAllProxies();
-    const maxAttempts = allProxies.length;
+    const maxAttempts = Math.max(allProxies.length, 5); // Try at least 5 times
     let lastError: Error;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -99,7 +111,6 @@ export class SalesforceTokenAuth {
 
       try {
         console.log(`🔄 Making request via CORS proxy (attempt ${attempt}/${maxAttempts}): ${corsProxy}`);
-        console.log(`Using proxy: ${corsProxy}`);
         
         const response = await fetch(proxiedUrl, requestOptions);
         
@@ -147,6 +158,8 @@ export class SalesforceTokenAuth {
           console.log(`⚠️ CORS proxy not available (${corsProxy}). Trying next proxy...`);
           continue;
         }
+          // Add a small delay before trying the next proxy
+          await this.sleep(500);
         
         // For authentication/permission errors, don't retry
         if (error.message.includes('Authentication failed') || error.message.includes('Access denied')) {
@@ -163,7 +176,7 @@ export class SalesforceTokenAuth {
       }
     }
 
-    throw lastError || new Error('All connection attempts failed');
+    throw lastError || new Error('Unable to connect to Salesforce. All CORS proxy services are currently unavailable. Please check your internet connection and try again in a few minutes.');
   }
 
   /**
@@ -174,7 +187,8 @@ export class SalesforceTokenAuth {
       if (corsProxy.includes('allorigins.win') || 
           corsProxy.includes('corsproxy.io') || 
           corsProxy.includes('cors.sh') || 
-          corsProxy.includes('bridged.cc')) {
+          corsProxy.includes('bridged.cc') ||
+          corsProxy.includes('thingproxy.freeboard.io')) {
         return `${corsProxy}${encodeURIComponent(targetUrl)}`;
       } else {
         // Default CORS Anywhere format (no encoding needed)

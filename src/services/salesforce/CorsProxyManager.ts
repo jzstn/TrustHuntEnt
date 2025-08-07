@@ -4,12 +4,11 @@
 export class CorsProxyManager {
   private static instance: CorsProxyManager;
   private corsProxies: string[] = [
-    'http://localhost:3001/',
-    // Fallback proxies
     'https://api.allorigins.win/raw?url=',
     'https://corsproxy.io/?',
-    'https://proxy.cors.sh/',
-    'https://cors.bridged.cc/',
+    'https://cors.sh/',
+    'https://api.codetabs.com/v1/proxy?quest=',
+    'https://thingproxy.freeboard.io/fetch/'
     'https://cors-anywhere.herokuapp.com/'
   ];
   private currentProxyIndex = 0;

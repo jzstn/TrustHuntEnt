@@ -87,12 +87,12 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
                 <div className="flex items-start space-x-3">
                   <Info className="w-5 h-5 text-blue-600 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-medium text-blue-900">Automatic CORS Handling</h4>
+                    <h4 className="text-sm font-medium text-blue-900">Enhanced Connection System</h4>
                     <div className="text-xs text-blue-800 mt-1 space-y-1">
                       <p>• Tries direct connection first (fastest)</p>
-                      <p>• Uses public CORS proxies automatically</p>
-                      <p>• Switches between proxies if rate limited</p>
-                      <p>• Improved error handling and recovery</p>
+                      <p>• Multiple fallback proxy services</p>
+                      <p>• Automatic retry with different proxies</p>
+                      <p>• Enhanced error handling and recovery</p>
                     </div>
                   </div>
                 </div>
