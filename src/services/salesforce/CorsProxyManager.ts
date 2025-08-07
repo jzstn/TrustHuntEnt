@@ -4,12 +4,12 @@
 export class CorsProxyManager {
   private static instance: CorsProxyManager;
   private corsProxies: string[] = [
+    'http://localhost:3001/proxy?url=',
     'https://api.allorigins.win/raw?url=',
     'https://corsproxy.io/?',
     'https://cors.sh/',
     'https://api.codetabs.com/v1/proxy?quest=',
-    'https://thingproxy.freeboard.io/fetch/',
-    'https://cors-anywhere.herokuapp.com/'
+    'https://thingproxy.freeboard.io/fetch/'
   ];
   private currentProxyIndex = 0;
   private rateLimitedProxies = new Set<string>();
