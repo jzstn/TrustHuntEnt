@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useSecurityStore } from '../../store/useSecurityStore';
 import { useSalesforcePasswordAuth } from '../../hooks/useSalesforcePasswordAuth';
 import { useSalesforceTokenAuth } from '../../hooks/useSalesforceTokenAuth';
@@ -53,7 +52,6 @@ import {
 import { format } from 'date-fns';
 
 export const TrustHuntDashboard: React.FC = () => {
-  const navigate = useNavigate();
   const [selectedView, setSelectedView] = useState<'overview' | 'vulnerabilities' | 'scan_results'>('overview');
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
