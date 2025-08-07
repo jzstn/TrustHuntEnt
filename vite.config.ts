@@ -6,15 +6,15 @@ export default defineConfig({
   base: '/TrustHuntEnt/',
   build: {
     outDir: 'dist',
-    assetsDir: 'static',
+    assetsDir: 'assets',
     sourcemap: false,
     target: 'es2015',
     minify: 'esbuild',
     rollupOptions: {
       output: {
-        entryFileNames: 'static/[name].[hash].js',
-        chunkFileNames: 'static/[name].[hash].js',
-        assetFileNames: 'static/[name].[hash].[ext]',
+        entryFileNames: 'assets/[name]-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks: {
           vendor: ['react', 'react-dom'],
           router: ['react-router-dom'],
