@@ -255,21 +255,20 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
                   <p>5. Or use Workbench, Postman, or other API tools to get a token</p>
                 </div>
               </div>
-
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
               {/* Security Notice */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <div className="flex items-start space-x-2">
+                <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
                   <Shield className="w-4 h-4 text-yellow-600 mt-0.5" />
-                  <div className="text-xs text-yellow-800">
-                    <p className="font-medium">Security Notice</p>
-                    <p>Access tokens are temporary and will expire. This method is for testing only. 
-                       For production applications, use OAuth 2.0 flow.</p>
-                  </div>
-                </div>
+                  <h4 className="text-sm font-medium text-green-900">Ready to Connect</h4>
+                  <div className="text-xs text-green-800 mt-1 space-y-1">
+                    <p>• Automatic CORS proxy handling</p>
+                    <p>• Multiple fallback services</p>
+                    <p>• No additional setup required</p>
+                    <p>• Enhanced error recovery</p>
               </div>
 
               {/* Submit Button */}
-              <button
                 type="submit"
                 disabled={isLoading || !credentials.accessToken || !credentials.instanceUrl}
                 className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2"
@@ -291,12 +290,6 @@ export const SalesforceTokenModal: React.FC<SalesforceTokenModalProps> = ({
             {/* Help Text */}
             <div className="mt-6 pt-6 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-700 mb-2">Connection Method</h4>
-              <div className="text-xs text-gray-600 space-y-1">
-                <p>• <strong>Direct connection:</strong> Fastest method, tries first</p>
-                <p>• <strong>CORS proxy fallback:</strong> Automatic if direct fails</p>
-                <p>• <strong>Smart proxy switching:</strong> Avoids rate-limited proxies</p>
-                <p>• <strong>Enhanced error handling:</strong> Clear error messages</p>
-              </div>
             </div>
           </div>
         </div>

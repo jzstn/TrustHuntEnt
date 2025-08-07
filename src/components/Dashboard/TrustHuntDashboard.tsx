@@ -154,7 +154,8 @@ export const TrustHuntDashboard: React.FC = () => {
       console.log('✅ Token connection successful');
     } catch (error) {
       console.error('❌ Token connection failed:', error);
-      setConnectionStatus('error');
+      // The error from the auth service is already user-friendly, so just re-throw it
+      throw error;
     }
   };
 

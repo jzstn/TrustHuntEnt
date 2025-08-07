@@ -253,14 +253,18 @@ export class SalesforceTokenAuth {
     } catch (error) {
       console.error('❌ Token validation error:', error);
       
-      // Check if local proxy is not running
-      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
-        throw new Error('Connection failed. All CORS proxies are unavailable. Please check your internet connection or try again later.');
+      // Provide helpful error messages for common issues
+      if (error.message.includes('All CORS proxies failed')) {
+        throw new Error('Unable to connect to Salesforce. All CORS proxy services are currently unavailable. Please try again in a few minutes.');
       }
       
       // Provide helpful error messages for common issues
       if (error.message.includes('rate limit') || error.message.includes('429')) {
-        throw new Error('CORS proxy rate limit exceeded. Please wait a few minutes and try again, or set up your own CORS proxy for unlimited access.');
+        throw new Error('Service temporarily unavailable due to rate limits. Please wait a few minutes and try again.');
+      }
+      
+      if (error.message.includes('Failed to fetch') || error.message.includes('Network error')) {
+        throw new Error('Connection failed. Please check your internet connection and try again.');
       }
       
       throw error;
