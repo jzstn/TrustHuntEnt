@@ -842,5 +842,6 @@ const TrustHuntDashboard: React.FC = () => {
       />
     </div>
   );
+};
 
 export default TrustHuntDashboard;
