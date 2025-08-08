@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-export const TrustHuntDashboard: React.FC = () => {
+const TrustHuntDashboard: React.FC = () => {
   const [selectedView, setSelectedView] = useState<'overview' | 'vulnerabilities' | 'scan_results'>('overview');
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [showTokenModal, setShowTokenModal] = useState(false);
@@ -842,4 +842,5 @@ export const TrustHuntDashboard: React.FC = () => {
       />
     </div>
   );
-};
+
+export default TrustHuntDashboard;
