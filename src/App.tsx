@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import TrustHuntDashboard from './components/Dashboard/TrustHuntDashboard';
+import { TrustHuntDashboard } from './components/Dashboard/TrustHuntDashboard';
 
 // Get the base path from Vite's base config
 const basename = import.meta.env.BASE_URL;
